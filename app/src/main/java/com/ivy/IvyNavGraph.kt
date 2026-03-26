@@ -53,6 +53,8 @@ import com.ivy.search.SearchScreen
 import com.ivy.settings.SettingsScreen
 import com.ivy.transaction.EditTransactionScreen
 import com.ivy.transactions.TransactionsScreen
+import com.ivy.zakat.ZakatScreen as ZakatScreenImpl
+import com.ivy.zakat.detail.ZakatDetailScreen as ZakatDetailScreenImpl
 
 @ExperimentalFoundationApi
 @ExperimentalAnimationApi
@@ -88,5 +90,7 @@ fun BoxWithConstraintsScope.IvyNavGraph(screen: Screen?) {
         ReleasesScreen -> ReleasesScreenImpl()
         DisclaimerScreen -> DisclaimerScreenImpl()
         PollScreen -> PollScreen()
+        is com.ivy.navigation.ZakatScreen -> ZakatScreenImpl(screen = screen)
+        is com.ivy.navigation.ZakatDetailScreen -> ZakatDetailScreenImpl(screen = screen)
     }
 }

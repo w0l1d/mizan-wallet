@@ -145,3 +145,16 @@ data object ReleasesScreen : Screen
 data object DisclaimerScreen : Screen
 
 data object PollScreen : Screen
+
+data object ZakatScreen : Screen {
+    override val isLegacy: Boolean
+        get() = true
+}
+
+@Suppress("DataClassDefaultValues", "DataClassTypedIDs")
+data class ZakatDetailScreen(
+    val zakatConfigId: UUID? = null
+) : Screen {
+    override val isLegacy: Boolean
+        get() = true
+}
