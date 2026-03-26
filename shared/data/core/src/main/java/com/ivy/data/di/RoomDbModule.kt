@@ -14,6 +14,8 @@ import com.ivy.data.db.dao.read.TagAssociationDao
 import com.ivy.data.db.dao.read.TagDao
 import com.ivy.data.db.dao.read.TransactionDao
 import com.ivy.data.db.dao.read.UserDao
+import com.ivy.data.db.dao.read.ZakatConfigDao
+import com.ivy.data.db.dao.read.ZakatPaymentDao
 import com.ivy.data.db.dao.write.WriteAccountDao
 import com.ivy.data.db.dao.write.WriteBudgetDao
 import com.ivy.data.db.dao.write.WriteCategoryDao
@@ -25,6 +27,8 @@ import com.ivy.data.db.dao.write.WriteSettingsDao
 import com.ivy.data.db.dao.write.WriteTagAssociationDao
 import com.ivy.data.db.dao.write.WriteTagDao
 import com.ivy.data.db.dao.write.WriteTransactionDao
+import com.ivy.data.db.dao.write.WriteZakatConfigDao
+import com.ivy.data.db.dao.write.WriteZakatPaymentDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -161,5 +165,25 @@ object RoomDbModule {
     @Provides
     fun provideWriteTagAssociationDao(db: IvyRoomDatabase): WriteTagAssociationDao {
         return db.writeTagAssociationDao
+    }
+
+    @Provides
+    fun provideZakatConfigDao(db: IvyRoomDatabase): ZakatConfigDao {
+        return db.zakatConfigDao
+    }
+
+    @Provides
+    fun provideZakatPaymentDao(db: IvyRoomDatabase): ZakatPaymentDao {
+        return db.zakatPaymentDao
+    }
+
+    @Provides
+    fun provideWriteZakatConfigDao(db: IvyRoomDatabase): WriteZakatConfigDao {
+        return db.writeZakatConfigDao
+    }
+
+    @Provides
+    fun provideWriteZakatPaymentDao(db: IvyRoomDatabase): WriteZakatPaymentDao {
+        return db.writeZakatPaymentDao
     }
 }

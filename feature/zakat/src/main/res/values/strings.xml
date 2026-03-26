@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="zakat">Zakat</string>
+    <string name="zakat_settings">Zakat Settings</string>
+    <string name="setup_zakat">Setup Zakat</string>
+    <string name="settings">Settings</string>
+    <string name="refresh">Refresh</string>
+
+    <!-- Nisab -->
+    <string name="nisab_status">Nisab Status</string>
+    <string name="nisab_standard">Nisab Standard</string>
+    <string name="nisab_threshold">Nisab Threshold</string>
+    <string name="gold_nisab">Gold (85g)</string>
+    <string name="silver_nisab">Silver (595g)</string>
+    <string name="above_nisab">Above Nisab</string>
+    <string name="below_nisab">Below Nisab</string>
+    <string name="above_nisab_since">Above Nisab since</string>
+    <string name="metal_price">Metal Price</string>
+
+    <!-- Price source -->
+    <string name="price_source">Price Source</string>
+    <string name="automatic">Automatic</string>
+    <string name="manual">Manual</string>
+    <string name="gold_price">Gold Price</string>
+    <string name="silver_price">Silver Price</string>
+    <string name="refresh_prices">Refresh Prices</string>
+    <string name="unavailable">Unavailable</string>
+
+    <!-- Wealth -->
+    <string name="total_wealth">Total Wealth</string>
+    <string name="net_zakatable">Net Zakatable</string>
+    <string name="deductions">Deductions</string>
+    <string name="debts_amount">Debts amount</string>
+    <string name="account_balances">Account Balances</string>
+    <string name="physical_holdings">Physical Holdings</string>
+    <string name="physical_gold">Physical Gold</string>
+    <string name="physical_silver">Physical Silver</string>
+    <string name="gold_grams">Gold (grams)</string>
+    <string name="silver_grams">Silver (grams)</string>
+
+    <!-- Hawl -->
+    <string name="hawl_progress">Hawl Progress</string>
+    <string name="in_progress">In Progress</string>
+    <string name="complete">Complete</string>
+    <string name="not_started">Not Started</string>
+    <string name="paid">Paid</string>
+    <string name="days_remaining">days remaining</string>
+    <string name="start">Start</string>
+    <string name="end">End</string>
+
+    <!-- Zakat -->
+    <string name="zakat_calculation">Zakat Calculation</string>
+    <string name="zakat_rate">Zakat Rate</string>
+    <string name="zakat_due">Zakat Due (2.5%%)</string>
+    <string name="pay_zakat">Pay Zakat</string>
+
+    <!-- Payments -->
+    <string name="payment_history">Payment History</string>
+    <string name="total_paid">Total Paid</string>
+    <string name="remaining">Remaining</string>
+
+    <!-- Hijri -->
+    <string name="hijri_calendar">Hijri Calendar</string>
+    <string name="hijri_offset">Hijri Calendar Offset</string>
+    <string name="hijri_offset_hint">Adjust the Hijri date by +/- days if your local observation differs from the default calendar</string>
+    <string name="offset_days">Offset (days)</string>
+
+    <!-- Accounts -->
+    <string name="select_accounts">Select Accounts</string>
+    <string name="select_accounts_hint">Choose which accounts to include in Nisab calculation. Leave all unchecked for all accounts.</string>
+    <string name="deduction_account">Deduction Account</string>
+    <string name="set_as_deduction">Set as deduction</string>
+
+    <!-- General -->
+    <string name="name">Name</string>
+    <string name="save">Save</string>
+    <string name="delete">Delete</string>
+    <string name="no_zakat_configs">No Zakat Tracking</string>
+    <string name="no_zakat_configs_text">Set up Zakat tracking to monitor your Nisab threshold and Hawl period automatically</string>
+</resources>
