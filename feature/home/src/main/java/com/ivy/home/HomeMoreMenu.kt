@@ -69,6 +69,7 @@ import com.ivy.navigation.CategoriesScreen
 import com.ivy.navigation.IvyPreview
 import com.ivy.navigation.LoansScreen
 import com.ivy.navigation.PlannedPaymentsScreen
+import com.ivy.navigation.ZakatScreen
 import com.ivy.navigation.ReportScreen
 import com.ivy.navigation.SearchScreen
 import com.ivy.navigation.SettingsScreen
@@ -533,6 +534,26 @@ private fun QuickAccess(
                 label = stringResource(R.string.loans),
             ) {
                 nav.navigateTo(LoansScreen)
+            }
+
+            Spacer(Modifier.weight(1f))
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Third Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.Top
+        ) {
+            Spacer(Modifier.weight(1f))
+
+            MoreMenuButton(
+                icon = R.drawable.home_more_menu_budgets,
+                label = stringResource(com.ivy.ui.R.string.zakat_menu),
+            ) {
+                nav.navigateTo(ZakatScreen)
             }
 
             Spacer(Modifier.weight(1f))

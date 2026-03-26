@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="zakat">الزكاة</string>
+    <string name="zakat_settings">إعدادات الزكاة</string>
+    <string name="setup_zakat">إعداد الزكاة</string>
+    <string name="settings">الإعدادات</string>
+    <string name="refresh">تحديث</string>
+
+    <!-- النصاب -->
+    <string name="nisab_status">حالة النصاب</string>
+    <string name="nisab_standard">معيار النصاب</string>
+    <string name="nisab_threshold">حد النصاب</string>
+    <string name="gold_nisab">الذهب (٨٥غ)</string>
+    <string name="silver_nisab">الفضة (٥٩٥غ)</string>
+    <string name="above_nisab">فوق النصاب</string>
+    <string name="below_nisab">أقل من النصاب</string>
+    <string name="above_nisab_since">فوق النصاب منذ</string>
+    <string name="metal_price">سعر المعدن</string>
+
+    <!-- مصدر السعر -->
+    <string name="price_source">مصدر السعر</string>
+    <string name="automatic">تلقائي</string>
+    <string name="manual">يدوي</string>
+    <string name="gold_price">سعر الذهب</string>
+    <string name="silver_price">سعر الفضة</string>
+    <string name="refresh_prices">تحديث الأسعار</string>
+    <string name="unavailable">غير متوفر</string>
+
+    <!-- الثروة -->
+    <string name="total_wealth">إجمالي الثروة</string>
+    <string name="net_zakatable">صافي المال الخاضع للزكاة</string>
+    <string name="deductions">الخصومات</string>
+    <string name="debts_amount">مبلغ الديون</string>
+    <string name="account_balances">أرصدة الحسابات</string>
+    <string name="physical_holdings">الممتلكات المادية</string>
+    <string name="physical_gold">الذهب المادي</string>
+    <string name="physical_silver">الفضة المادية</string>
+    <string name="gold_grams">الذهب (غرام)</string>
+    <string name="silver_grams">الفضة (غرام)</string>
+
+    <!-- الحول -->
+    <string name="hawl_progress">تقدم الحول</string>
+    <string name="in_progress">قيد التقدم</string>
+    <string name="complete">مكتمل</string>
+    <string name="not_started">لم يبدأ</string>
+    <string name="paid">مدفوع</string>
+    <string name="days_remaining">يوم متبقي</string>
+    <string name="start">البداية</string>
+    <string name="end">النهاية</string>
+
+    <!-- الزكاة -->
+    <string name="zakat_calculation">حساب الزكاة</string>
+    <string name="zakat_rate">نسبة الزكاة</string>
+    <string name="zakat_due">الزكاة المستحقة (٢.٥٪)</string>
+    <string name="pay_zakat">دفع الزكاة</string>
+
+    <!-- المدفوعات -->
+    <string name="payment_history">سجل المدفوعات</string>
+    <string name="total_paid">إجمالي المدفوع</string>
+    <string name="remaining">المتبقي</string>
+
+    <!-- التقويم الهجري -->
+    <string name="hijri_calendar">التقويم الهجري</string>
+    <string name="hijri_offset">تعديل التقويم الهجري</string>
+    <string name="hijri_offset_hint">اضبط التاريخ الهجري بإضافة أو طرح أيام إذا كانت رؤية الهلال في بلدك تختلف عن التقويم الافتراضي</string>
+    <string name="offset_days">الفرق (أيام)</string>
+
+    <!-- الحسابات -->
+    <string name="select_accounts">اختر الحسابات</string>
+    <string name="select_accounts_hint">اختر الحسابات المشمولة في حساب النصاب. اترك الكل بدون تحديد لتشمل جميع الحسابات.</string>
+    <string name="deduction_account">حساب الخصم</string>
+    <string name="set_as_deduction">تعيين للخصم</string>
+
+    <!-- عام -->
+    <string name="name">الاسم</string>
+    <string name="save">حفظ</string>
+    <string name="delete">حذف</string>
+    <string name="no_zakat_configs">لا يوجد تتبع للزكاة</string>
+    <string name="no_zakat_configs_text">قم بإعداد تتبع الزكاة لمراقبة حد النصاب وفترة الحول تلقائيًا</string>
+</resources>

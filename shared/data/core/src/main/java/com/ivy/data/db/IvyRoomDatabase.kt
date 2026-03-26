@@ -15,6 +15,8 @@ import com.ivy.data.db.dao.read.TagDao
 import com.ivy.data.db.dao.read.TagAssociationDao
 import com.ivy.data.db.dao.read.TransactionDao
 import com.ivy.data.db.dao.read.UserDao
+import com.ivy.data.db.dao.read.ZakatConfigDao
+import com.ivy.data.db.dao.read.ZakatPaymentDao
 import com.ivy.data.db.dao.write.WriteAccountDao
 import com.ivy.data.db.dao.write.WriteBudgetDao
 import com.ivy.data.db.dao.write.WriteCategoryDao
@@ -26,6 +28,8 @@ import com.ivy.data.db.dao.write.WriteSettingsDao
 import com.ivy.data.db.dao.write.WriteTagDao
 import com.ivy.data.db.dao.write.WriteTagAssociationDao
 import com.ivy.data.db.dao.write.WriteTransactionDao
+import com.ivy.data.db.dao.write.WriteZakatConfigDao
+import com.ivy.data.db.dao.write.WriteZakatPaymentDao
 import com.ivy.data.db.entity.AccountEntity
 import com.ivy.data.db.entity.BudgetEntity
 import com.ivy.data.db.entity.CategoryEntity
@@ -38,12 +42,16 @@ import com.ivy.data.db.entity.TagEntity
 import com.ivy.data.db.entity.TagAssociationEntity
 import com.ivy.data.db.entity.TransactionEntity
 import com.ivy.data.db.entity.UserEntity
+import com.ivy.data.db.entity.ZakatConfigEntity
+import com.ivy.data.db.entity.ZakatPaymentEntity
 import com.ivy.data.db.migration.Migration123to124_LoanIncludeDateTime
 import com.ivy.data.db.migration.Migration124to125_LoanEditDateTime
 import com.ivy.data.db.migration.Migration126to127_LoanRecordType
 import com.ivy.data.db.migration.Migration127to128_PaidForDateRecord
 import com.ivy.data.db.migration.Migration128to129_DeleteIsDeleted
 import com.ivy.data.db.migration.Migration129to130_LoanIncludeNote
+import com.ivy.data.db.migration.Migration130to131_Zakat
+import com.ivy.data.db.migration.Migration131to132_ZakatRedesign
 import com.ivy.domain.db.RoomTypeConverters
 import com.ivy.domain.db.migration.Migration105to106_TrnRecurringRules
 import com.ivy.domain.db.migration.Migration106to107_Wishlist
@@ -69,7 +77,8 @@ import com.ivy.domain.db.migration.Migration125to126_Tags
         AccountEntity::class, TransactionEntity::class, CategoryEntity::class,
         SettingsEntity::class, PlannedPaymentRuleEntity::class,
         UserEntity::class, ExchangeRateEntity::class, BudgetEntity::class,
-        LoanEntity::class, LoanRecordEntity::class, TagEntity::class, TagAssociationEntity::class
+        LoanEntity::class, LoanRecordEntity::class, TagEntity::class, TagAssociationEntity::class,
+        ZakatConfigEntity::class, ZakatPaymentEntity::class
     ],
     autoMigrations = [
         AutoMigration(
@@ -78,7 +87,7 @@ import com.ivy.domain.db.migration.Migration125to126_Tags
             spec = IvyRoomDatabase.DeleteSEMigration::class
         )
     ],
-    version = 130,
+    version = 132,
     exportSchema = true
 )
 @TypeConverters(RoomTypeConverters::class)
@@ -95,6 +104,8 @@ abstract class IvyRoomDatabase : RoomDatabase() {
     abstract val loanRecordDao: LoanRecordDao
     abstract val tagDao: TagDao
     abstract val tagAssociationDao: TagAssociationDao
+    abstract val zakatConfigDao: ZakatConfigDao
+    abstract val zakatPaymentDao: ZakatPaymentDao
 
     abstract val writeAccountDao: WriteAccountDao
     abstract val writeTransactionDao: WriteTransactionDao
@@ -107,6 +118,8 @@ abstract class IvyRoomDatabase : RoomDatabase() {
     abstract val writeLoanRecordDao: WriteLoanRecordDao
     abstract val writeTagDao: WriteTagDao
     abstract val writeTagAssociationDao: WriteTagAssociationDao
+    abstract val writeZakatConfigDao: WriteZakatConfigDao
+    abstract val writeZakatPaymentDao: WriteZakatPaymentDao
 
     companion object {
         const val DB_NAME = "ivywallet.db"
@@ -135,7 +148,9 @@ abstract class IvyRoomDatabase : RoomDatabase() {
             Migration126to127_LoanRecordType(),
             Migration127to128_PaidForDateRecord(),
             Migration128to129_DeleteIsDeleted(),
-            Migration129to130_LoanIncludeNote()
+            Migration129to130_LoanIncludeNote(),
+            Migration130to131_Zakat(),
+            Migration131to132_ZakatRedesign()
         )
 
         @Suppress("SpreadOperator")

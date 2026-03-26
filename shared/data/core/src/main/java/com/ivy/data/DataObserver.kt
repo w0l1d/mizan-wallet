@@ -6,6 +6,10 @@ import com.ivy.data.model.Category
 import com.ivy.data.model.CategoryId
 import com.ivy.data.model.Tag
 import com.ivy.data.model.TagId
+import com.ivy.data.model.ZakatConfig
+import com.ivy.data.model.ZakatConfigId
+import com.ivy.data.model.ZakatPayment
+import com.ivy.data.model.ZakatPaymentId
 import com.ivy.data.model.sync.UniqueId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -36,6 +40,14 @@ sealed interface DataWriteEvent {
     sealed interface TagChange : DataWriteEvent
     data class SaveTags(val tags: List<Tag>) : TagChange
     data class DeleteTags(val operation: DeleteOperation<TagId>) : TagChange
+
+    sealed interface ZakatConfigChange : DataWriteEvent
+    data class SaveZakatConfigs(val configs: List<ZakatConfig>) : ZakatConfigChange
+    data class DeleteZakatConfigs(val operation: DeleteOperation<ZakatConfigId>) : ZakatConfigChange
+
+    sealed interface ZakatPaymentChange : DataWriteEvent
+    data class SaveZakatPayments(val payments: List<ZakatPayment>) : ZakatPaymentChange
+    data class DeleteZakatPayments(val operation: DeleteOperation<ZakatPaymentId>) : ZakatPaymentChange
 }
 
 sealed interface DeleteOperation<out Id : UniqueId> {
