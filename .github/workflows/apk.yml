@@ -28,18 +28,21 @@ jobs:
       - name: Upload APK to Github Actions
         uses: actions/upload-artifact@v4
         with:
-          name: Ivy-Wallet-Demo.apk
+          name: Mizan-Demo.apk
           path: app/build/outputs/apk/demo/app-demo.apk
 
       - name: Upload APK in Telegram Group
         if: |
           github.ref == 'refs/heads/main'
         run: |
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c 1-7)
           COMMIT_LINK="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
           COMMIT_MESSAGE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}" | jq -r .commit.message | cut -c 1-100)
-          CAPTION=$'Ivy Wallet Demo APK:\n\n'"$COMMIT_MESSAGE"$'\n... see commit at: '"$COMMIT_LINK"
-          
+          APK_SHA256=$(sha256sum app/build/outputs/apk/demo/app-demo.apk | awk '{print $1}')
+          CAPTION=$'📦 Mizan Wallet Demo APK\n\n'"$COMMIT_MESSAGE"$'\n\n🔖 Commit: '"$SHORT_SHA"$'\n🔗 '"$COMMIT_LINK"$'\n🔐 SHA-256: '"$APK_SHA256"
+
           curl -F "chat_id=-1003694191301" \
+               -F "message_thread_id=14" \
                -F "document=@app/build/outputs/apk/demo/app-demo.apk" \
                -F "caption=$CAPTION" \
                https://api.telegram.org/bot${{ secrets.BOTFATHER_TELEGRAM_BOT_TOKEN }}/sendDocument

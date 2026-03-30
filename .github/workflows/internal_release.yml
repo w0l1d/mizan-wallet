@@ -137,7 +137,7 @@ jobs:
       - name: Upload APK to Github Actions
         uses: actions/upload-artifact@v4
         with:
-          name: Ivy-Wallet-Demo.apk
+          name: Mizan-Demo.apk
           path: app/build/outputs/apk/demo/app-demo.apk
 
       - name: Prepare changelog for GitHub Release
@@ -167,16 +167,20 @@ jobs:
         with:
           upload_url: ${{ steps.create_github_release.outputs.upload_url }}
           asset_path: app/build/outputs/apk/demo/app-demo.apk
-          asset_name: Ivy-Wallet-${{ env.TAG_NAME }}.apk
+          asset_name: Mizan-${{ env.TAG_NAME }}.apk
           asset_content_type: application/vnd.android.package-archive
 
       - name: Announce in Telegram group
         run: |
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c 1-7)
           RELEASE_TAG=${{ env.TAG_NAME }}
           RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}"
-          CAPTION=$'🚀 Ivy Wallet '"$RELEASE_TAG"$' release\n\nCheck it out here: '"$RELEASE_URL"'    🚢 Please, test the release candidate before we ship it.'
+          COMMIT_LINK="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          APK_SHA256=$(sha256sum app/build/outputs/apk/demo/app-demo.apk | awk '{print $1}')
+          CAPTION=$'🚀 Mizan Wallet '"$RELEASE_TAG"$'\n\n🔖 Commit: '"$SHORT_SHA"$'\n🔗 Commit: '"$COMMIT_LINK"$'\n📋 Release: '"$RELEASE_URL"$'\n🔐 SHA-256: '"$APK_SHA256"$'\n\n🚢 Please test before production.'
 
           curl -F "chat_id=-1003694191301" \
+               -F "message_thread_id=13" \
                -F "document=@app/build/outputs/apk/demo/app-demo.apk" \
                -F "caption=$CAPTION" \
                https://api.telegram.org/bot${{ secrets.BOTFATHER_TELEGRAM_BOT_TOKEN }}/sendDocument
