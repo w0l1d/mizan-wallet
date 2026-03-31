@@ -58,6 +58,9 @@ jobs:
           PLAY_CONFIG_JSON: ${{ secrets.GOOGLE_PLAY_CONSOLE_JSON }}
       #--------------------------------------------------------------------------------
 
+      - name: Inject google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > app/google-services.json
+
       - name: Build production App Bundle
         run: bundle exec fastlane production_build
         env:
