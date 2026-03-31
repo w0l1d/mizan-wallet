@@ -51,6 +51,7 @@ jobs:
 
       - name: Build Ivy Wallet's code
         run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > app/google-services.json
           ./gradlew :shared:data:core:assembleDebug :shared:data:core:assembleAndroidTest
           ./gradlew :shared:domain:assembleDebug :shared:domain:assembleAndroidTest
 
