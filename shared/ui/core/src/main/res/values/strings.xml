@@ -264,7 +264,7 @@
     <string name="exporting_data">Exporting Data</string>
     <string name="exporting_data_description">Please wait, exporting data</string>
     <string name="start_date_of_month">Choose the start date of the month</string>
-    <string name="ivy_telegram">Ivy Telegram group</string>
+    <string name="ivy_telegram">Mizan Telegram group</string>
     <string name="help_center">Help center</string>
     <string name="roadmap">Roadmap</string>
     <string name="report_bug">Report a bug</string>
@@ -478,7 +478,7 @@
     <string name="contributions_number">%1$s contributions</string>
     <string name="you_can_see_a_piechart">Tap the appropriate card above to view a pie chart of your income and expenses!</string>
     <string name="it_looks_like_that_you_are_enjoying">It looks like that you\'re enjoying Mizan Wallet! Feel free join our invite-only Mizan Telegram Community and make our app better :)</string>
-    <string name="ivy_community">Ivy Community</string>
+    <string name="ivy_community">Mizan Community</string>
     <string name="join_now">Join now</string>
     <string name="it_looks_like_that_you_are_enjoying_telegram">It looks like that you\'re enjoying Mizan Wallet! If you haven\'t yet, feel free join our invite-only Mizan Telegram Community and make our app better :)</string>
     <string name="please_type_category_name">Please type \"%1$s\" in order to delete your category.</string>

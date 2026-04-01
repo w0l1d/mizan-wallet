@@ -67,6 +67,10 @@ class CustomerJourneyCardsProvider @Inject constructor(
   }
 
   companion object {
+    private const val VOTE_CARD_EXPIRY_YEAR = 2025
+    private const val VOTE_CARD_EXPIRY_MONTH = 7
+    private const val VOTE_CARD_EXPIRY_DAY = 28
+
     val ACTIVE_CARDS = listOf(
       adjustBalanceCard(),
       addPlannedPaymentCard(),
@@ -160,19 +164,24 @@ class CustomerJourneyCardsProvider @Inject constructor(
       }
     )
 
-    @Suppress("MaxLineLength", "NoImplicitFunctionReturnType")
-    private fun voteCard() = CustomerJourneyCardModel(
+    private fun voteCard(): CustomerJourneyCardModel = CustomerJourneyCardModel(
       id = "vote_card",
       // to users that haven't voted
       condition = { trnCount, _, _, deps ->
-        val expiry = LocalDate.of(2025, 7, 28)
+        val expiry = LocalDate.of(
+          VOTE_CARD_EXPIRY_YEAR,
+          VOTE_CARD_EXPIRY_MONTH,
+          VOTE_CARD_EXPIRY_DAY
+        )
         trnCount > 3 &&
             // set expiration
             deps.timeProvider.localDateNow().isBefore(expiry) &&
             !deps.pollRepository.hasVoted(PollId.PaidIvy)
       },
       title = "How much are you willing to pay for Ivy Wallet?",
-      description = "Google Play requires us to update Ivy Wallet to target API level 35 (Android 15). We'd like to know if you will be interested to pay on a subscription basis so we can maintain the app.",
+      description = "Google Play requires us to update Ivy Wallet to target API level 35 " +
+        "(Android 15). We'd like to know if you will be interested to pay on a " +
+        "subscription basis so we can maintain the app.",
       cta = "Vote",
       ctaIcon = R.drawable.ic_telegram_24dp,
       hasDismiss = false,

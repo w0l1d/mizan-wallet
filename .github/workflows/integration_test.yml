@@ -49,7 +49,13 @@ jobs:
           disable-animations: false
           script: echo "Generated AVD snapshot for caching."
 
-      - name: Build Ivy Wallet's code
+      - name: Inject google-services.json
+        run: |
+          cat <<'EOF' > app/google-services.json
+          ${{ secrets.GOOGLE_SERVICES_JSON }}
+          EOF
+
+      - name: Build Mizan Wallet's code
         run: |
           ./gradlew :shared:data:core:assembleDebug :shared:data:core:assembleAndroidTest
           ./gradlew :shared:domain:assembleDebug :shared:domain:assembleAndroidTest
