@@ -20,6 +20,20 @@ private const val GoldNisabGrams = 85.0
 private const val SilverNisabGrams = 595.0
 private const val ZakatRate = 0.025
 
+/**
+ * Computes zakat on monetary wealth using the unified-annual-date method (الموعد السنوي الموحد).
+ *
+ * Total wealth = account balances (exchanged to base currency) + physical gold + physical silver.
+ * Zakatable base = (total wealth − deductions).coerceAtLeast(0).
+ * Due when zakatable ≥ nisab AND 1 Hijri year has passed since nisab was first reached.
+ * Amount = zakatable × 2.5%.
+ *
+ * See `docs/zakat-knowledge/` for the scholarly basis; `code-mapping.md` links each rule to the
+ * line in this file that implements it.
+ *
+ * Note on [com.ivy.data.model.ZakatConfig.deductions]: this field models الديون الحالة
+ * (debts currently due). Long-term debts are out of scope per the majority contemporary opinion.
+ */
 class CheckZakatNisabUseCase @Inject constructor(
     private val accountRepository: AccountRepository,
     private val calcAccBalanceAct: CalcAccBalanceAct,
