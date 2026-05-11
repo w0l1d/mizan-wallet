@@ -7,7 +7,6 @@ import com.ivy.data.model.PriceSource
 import com.ivy.data.model.Transaction
 import com.ivy.data.model.ZakatConfig
 import com.ivy.data.model.ZakatConfigId
-import com.ivy.data.model.ZakatPayment
 import com.ivy.data.model.ZakatTrackingState
 import com.ivy.data.model.primitive.AssetCode
 import com.ivy.data.model.primitive.NotBlankTrimmedString
@@ -17,8 +16,6 @@ import com.ivy.data.repository.ZakatPaymentRepository
 import com.ivy.zakat.model.AccountBalance
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
-
-import io.kotest.matchers.shouldBe
 import io.mockk.Called
 import io.mockk.Runs
 import io.mockk.coEvery
@@ -61,11 +58,19 @@ class GenerateZakatExpenseUseCaseTest {
 
         result.shouldBeTrue()
         coVerify { transactionRepository.save(match<Transaction> { it is Expense }) }
-        coVerify { zakatPaymentRepository.save(match { it.amount == 900.0 }) }
         coVerify {
-            zakatConfigRepository.save(match {
-                it.trackingState == ZakatTrackingState.ZAKAT_PAID
-            })
+            zakatPaymentRepository.save(
+                match {
+                    it.amount == 900.0
+                }
+            )
+        }
+        coVerify {
+            zakatConfigRepository.save(
+                match {
+                    it.trackingState == ZakatTrackingState.ZAKAT_PAID
+                }
+            )
         }
     }
 
@@ -85,14 +90,18 @@ class GenerateZakatExpenseUseCaseTest {
 
         result.shouldBeTrue()
         coVerify {
-            zakatPaymentRepository.save(match {
-                (it.amount - 1_125.0) < 0.02
-            })
+            zakatPaymentRepository.save(
+                match {
+                    (it.amount - 1_125.0) < 0.02
+                }
+            )
         }
         coVerify {
-            zakatConfigRepository.save(match {
-                it.trackingState == ZakatTrackingState.ZAKAT_PAID
-            })
+            zakatConfigRepository.save(
+                match {
+                    it.trackingState == ZakatTrackingState.ZAKAT_PAID
+                }
+            )
         }
     }
 
@@ -112,9 +121,11 @@ class GenerateZakatExpenseUseCaseTest {
 
         result.shouldBeTrue()
         coVerify {
-            zakatPaymentRepository.save(match {
-                (it.amount - 1_000.0) < 0.02
-            })
+            zakatPaymentRepository.save(
+                match {
+                    (it.amount - 1_000.0) < 0.02
+                }
+            )
         }
     }
 
@@ -134,9 +145,11 @@ class GenerateZakatExpenseUseCaseTest {
 
         result.shouldBeTrue()
         coVerify {
-            zakatPaymentRepository.save(match {
-                (it.amount - 250.0) < 0.02
-            })
+            zakatPaymentRepository.save(
+                match {
+                    (it.amount - 250.0) < 0.02
+                }
+            )
         }
     }
 
@@ -215,9 +228,11 @@ class GenerateZakatExpenseUseCaseTest {
         useCase.generate(config, listOf(account))
 
         coVerify {
-            zakatPaymentRepository.save(match {
-                it.zakatConfigId == configId && it.amount == 900.0
-            })
+            zakatPaymentRepository.save(
+                match {
+                    it.zakatConfigId == configId && it.amount == 900.0
+                }
+            )
         }
     }
 
@@ -237,13 +252,15 @@ class GenerateZakatExpenseUseCaseTest {
         useCase.generate(config, listOf(account))
 
         coVerify {
-            zakatConfigRepository.save(match {
-                it.trackingState == ZakatTrackingState.ZAKAT_PAID &&
-                    it.totalWealth == config.totalWealth &&
-                    it.physicalGoldGrams == 30.0 &&
-                    it.deductions == 2_000.0 &&
-                    it.nisabStandard == NisabStandard.GOLD
-            })
+            zakatConfigRepository.save(
+                match {
+                    it.trackingState == ZakatTrackingState.ZAKAT_PAID &&
+                        it.totalWealth == config.totalWealth &&
+                        it.physicalGoldGrams == 30.0 &&
+                        it.deductions == 2_000.0 &&
+                        it.nisabStandard == NisabStandard.GOLD
+                }
+            )
         }
     }
 
