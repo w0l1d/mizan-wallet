@@ -1,0 +1,149 @@
+name: Dependency Audit
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Every Monday at 08:00 UTC
+  workflow_dispatch:
+
+jobs:
+  dependency_audit:
+    name: Audit & Update Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout GIT
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: '18'
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Inject google-services.json
+        run: |
+          cat <<'EOF' > app/google-services.json
+          ${{ secrets.GOOGLE_SERVICES_JSON }}
+          EOF
+
+      - name: Generate dependency report
+        run: ./gradlew dependencyUpdates -Drevision=release --no-configuration-cache > dependency-updates-raw.txt 2>&1 || true
+
+      - name: Run OWASP dependency check
+        run: |
+          ./gradlew dependencyCheckAnalyze --no-configuration-cache > owasp-raw.txt 2>&1 || true
+
+      - name: Build report summary
+        id: build_report
+        run: |
+          REPORT_FILE="dependency-audit-report.md"
+
+          echo "# Dependency Audit Report" > $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M UTC')" >> $REPORT_FILE
+          echo "**Branch:** $GITHUB_REF_NAME" >> $REPORT_FILE
+          echo "**Commit:** $GITHUB_SHA" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+
+          # Dependency updates section
+          echo "## Available Updates" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          if [ -f dependency-updates-raw.txt ]; then
+            # Extract outdated dependencies
+            UPDATES=$(grep -A 2 "The following dependencies have later" dependency-updates-raw.txt || echo "")
+            OUTDATED=$(grep -E "^\s+-\s+[a-zA-Z].*\[" dependency-updates-raw.txt | head -50 || echo "")
+            if [ -n "$OUTDATED" ]; then
+              echo "\`\`\`" >> $REPORT_FILE
+              echo "$OUTDATED" >> $REPORT_FILE
+              echo "\`\`\`" >> $REPORT_FILE
+            else
+              echo "All dependencies are up to date." >> $REPORT_FILE
+            fi
+          else
+            echo "Dependency update check did not produce output." >> $REPORT_FILE
+          fi
+          echo "" >> $REPORT_FILE
+
+          # OWASP CVE section
+          echo "## Security Vulnerabilities (OWASP)" >> $REPORT_FILE
+          echo "" >> $REPORT_FILE
+          OWASP_REPORT=$(find . -name "dependency-check-report.html" -o -name "dependency-check-report.json" 2>/dev/null | head -1)
+          if [ -f "$OWASP_REPORT" ]; then
+            VULN_COUNT=$(grep -c "\"CRITICAL\"\|\"HIGH\"\|\"MEDIUM\"" "$OWASP_REPORT" 2>/dev/null || echo "0")
+            echo "Found **$VULN_COUNT** potential vulnerability entries. See attached report." >> $REPORT_FILE
+          elif grep -q "No vulnerabilities found" owasp-raw.txt 2>/dev/null; then
+            echo "No vulnerabilities found." >> $REPORT_FILE
+          elif grep -q "One or more dependencies were identified with known vulnerabilities" owasp-raw.txt 2>/dev/null; then
+            echo "Vulnerabilities detected — see OWASP report artifact." >> $REPORT_FILE
+            CRITICAL=$(grep -c "CRITICAL" owasp-raw.txt 2>/dev/null || echo "0")
+            HIGH=$(grep -c "HIGH" owasp-raw.txt 2>/dev/null || echo "0")
+            echo "" >> $REPORT_FILE
+            echo "- Critical: $CRITICAL" >> $REPORT_FILE
+            echo "- High: $HIGH" >> $REPORT_FILE
+          else
+            echo "OWASP check output:" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+            tail -30 owasp-raw.txt >> $REPORT_FILE 2>/dev/null || echo "No output" >> $REPORT_FILE
+            echo "\`\`\`" >> $REPORT_FILE
+          fi
+
+          # Store for Telegram
+          echo "report_file=$REPORT_FILE" >> $GITHUB_OUTPUT
+
+          # Determine if issues found
+          HAS_ISSUES="false"
+          if grep -q "The following dependencies have later" dependency-updates-raw.txt 2>/dev/null; then
+            HAS_ISSUES="true"
+          fi
+          if grep -q "One or more dependencies were identified with known vulnerabilities" owasp-raw.txt 2>/dev/null; then
+            HAS_ISSUES="true"
+          fi
+          echo "has_issues=$HAS_ISSUES" >> $GITHUB_OUTPUT
+
+      - name: Upload dependency report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-report
+          path: |
+            dependency-audit-report.md
+            dependency-updates-raw.txt
+            owasp-raw.txt
+            **/build/reports/dependency-check-report.*
+          retention-days: 30
+
+      - name: Send Telegram notification
+        if: always()
+        run: |
+          REPORT_CONTENT=$(cat dependency-audit-report.md 2>/dev/null | head -80)
+          RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          HAS_ISSUES="${{ steps.build_report.outputs.has_issues }}"
+
+          if [ "$HAS_ISSUES" = "true" ]; then
+            EMOJI="⚠️"
+            STATUS="Issues found"
+          else
+            EMOJI="✅"
+            STATUS="All clear"
+          fi
+
+          MESSAGE="${EMOJI} *Dependency Audit — ${STATUS}*
+
+\`\`\`
+${REPORT_CONTENT}
+\`\`\`
+
+🔗 [Full report](${RUN_URL})"
+
+          curl -s -X POST \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"chat_id\": \"-1003694191301\",
+              \"message_thread_id\": 14,
+              \"text\": $(echo "$MESSAGE" | jq -Rs .),
+              \"parse_mode\": \"Markdown\",
+              \"disable_web_page_preview\": true
+            }" \
+            "https://api.telegram.org/bot${{ secrets.BOTFATHER_TELEGRAM_BOT_TOKEN }}/sendMessage"

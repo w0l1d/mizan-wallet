@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request:
+  workflow_dispatch:
 
 jobs:
   assemble_demo_apk:
@@ -38,8 +39,7 @@ jobs:
           path: app/build/outputs/apk/demo/app-demo.apk
 
       - name: Upload APK in Telegram Group
-        if: |
-          github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         run: |
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c 1-7)
           COMMIT_LINK="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"

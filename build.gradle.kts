@@ -9,6 +9,14 @@ plugins {
     alias(libs.plugins.gradleWrapperUpgrade)
 
     alias(libs.plugins.koverPlugin)
+
+    // Run with:
+    // ./gradlew dependencyUpdates -Drevision=release
+    alias(libs.plugins.dependencyUpdates)
+
+    // Run with:
+    // ./gradlew dependencyCheckAnalyze
+    alias(libs.plugins.owaspDependencyCheck)
 }
 
 subprojects {
