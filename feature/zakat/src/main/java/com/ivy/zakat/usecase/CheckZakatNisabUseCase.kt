@@ -7,13 +7,16 @@ import com.ivy.data.model.PriceSource
 import com.ivy.data.model.ZakatConfig
 import com.ivy.data.model.ZakatTrackingState
 import com.ivy.data.repository.AccountRepository
+import com.ivy.data.repository.TransactionRepository
 import com.ivy.data.repository.ZakatConfigRepository
 import com.ivy.wallet.domain.action.account.CalcAccBalanceAct
 import com.ivy.wallet.domain.action.exchange.ExchangeAct
 import com.ivy.wallet.domain.action.settings.BaseCurrencyAct
+import com.ivy.wallet.domain.pure.data.ClosedTimeRange
 import com.ivy.wallet.domain.pure.exchange.ExchangeData
 import com.ivy.zakat.model.AccountBalance
 import java.math.BigDecimal
+import java.time.Instant
 import javax.inject.Inject
 
 private const val GoldNisabGrams = 85.0
@@ -36,6 +39,7 @@ private const val ZakatRate = 0.025
  */
 class CheckZakatNisabUseCase @Inject constructor(
     private val accountRepository: AccountRepository,
+    private val transactionRepository: TransactionRepository,
     private val calcAccBalanceAct: CalcAccBalanceAct,
     private val exchangeAct: ExchangeAct,
     private val zakatConfigRepository: ZakatConfigRepository,
@@ -75,7 +79,20 @@ class CheckZakatNisabUseCase @Inject constructor(
         val now = System.currentTimeMillis()
         val isAboveNisab = netWealth >= nisab && nisab > 0
 
-        val newState = computeNewState(config, isAboveNisab, now)
+        val nisabReachedDate = if (config.trackingState == ZakatTrackingState.CONFIGURED && isAboveNisab) {
+            findNisabReachedDate(
+                config = config,
+                nisabThreshold = nisab,
+                currentWealth = netWealth,
+                goldPrice = goldPrice,
+                silverPrice = silverPrice,
+                baseCurrency = baseCurrency,
+            ) ?: now
+        } else {
+            now
+        }
+
+        val newState = computeNewState(config, isAboveNisab, nisabReachedDate)
 
         // 7. Calculate Zakat due
         val zakatDue = if (newState.state == ZakatTrackingState.HAWL_COMPLETE) {
@@ -121,7 +138,8 @@ class CheckZakatNisabUseCase @Inject constructor(
 
     private suspend fun calculateAccountBalances(
         accountIds: List<AccountId>,
-        baseCurrency: String
+        baseCurrency: String,
+        endDate: Instant? = null,
     ): List<AccountBalance> {
         val allAccounts = accountRepository.findAll()
         val accounts = if (accountIds.isEmpty()) {
@@ -131,8 +149,9 @@ class CheckZakatNisabUseCase @Inject constructor(
         }
 
         return accounts.map { account ->
+            val range = endDate?.let { ClosedTimeRange.to(it) }
             val output = calcAccBalanceAct(
-                CalcAccBalanceAct.Input(account = account)
+                CalcAccBalanceAct.Input(account = account, range = range)
             )
 
             val exchanged = exchangeAct(
@@ -176,15 +195,109 @@ class CheckZakatNisabUseCase @Inject constructor(
         val nisabReachedDate: Long?,
     )
 
+    /**
+     * Binary-searches transaction history to find the earliest date when total wealth
+     * crossed above the nisab threshold. Returns null when no transaction history
+     * exists or the crossing date cannot be determined (caller falls back to `now`).
+     *
+     * Uses current exchange rates and metal prices as an approximation for historical
+     * values, since historical rate data is not available.
+     */
+    private suspend fun findNisabReachedDate(
+        config: ZakatConfig,
+        nisabThreshold: Double,
+        currentWealth: Double,
+        goldPrice: Double,
+        silverPrice: Double,
+        baseCurrency: String,
+    ): Long? {
+        if (currentWealth < nisabThreshold) return null
+
+        val accountIds = config.accountIds
+        val earliestDate = findEarliestTransactionDate(accountIds) ?: return null
+
+        // Check balance at the earliest transaction date
+        val balanceAtEarliest = computeTotalWealthAt(
+            accountIds, earliestDate, goldPrice, silverPrice, baseCurrency,
+        ) + config.physicalGoldGrams * goldPrice + config.physicalSilverGrams * silverPrice
+
+        val netAtEarliest = (balanceAtEarliest - config.deductions).coerceAtLeast(0.0)
+        if (netAtEarliest >= nisabThreshold) {
+            return earliestDate.toEpochMilli()
+        }
+
+        // Binary search between earliest date and now
+        val now = System.currentTimeMillis()
+        var low = earliestDate.toEpochMilli()
+        var high = now
+        var result: Long? = null
+
+        while (low <= high) {
+            val mid = low + (high - low) / 2
+            val midInstant = Instant.ofEpochMilli(mid)
+            val balance = computeTotalWealthAt(
+                accountIds, midInstant, goldPrice, silverPrice, baseCurrency,
+            ) + config.physicalGoldGrams * goldPrice + config.physicalSilverGrams * silverPrice
+            val netWealth = (balance - config.deductions).coerceAtLeast(0.0)
+
+            if (netWealth >= nisabThreshold) {
+                result = mid
+                high = mid - 1 // search left for an earlier date
+            } else {
+                low = mid + 1
+            }
+        }
+
+        return result
+    }
+
+    private suspend fun computeTotalWealthAt(
+        accountIds: List<AccountId>,
+        date: Instant,
+        goldPrice: Double,
+        silverPrice: Double,
+        baseCurrency: String,
+    ): Double {
+        val balances = calculateAccountBalances(accountIds, baseCurrency, endDate = date)
+        return balances.sumOf { it.balance }
+    }
+
+    private suspend fun findEarliestTransactionDate(
+        accountIds: List<AccountId>,
+    ): Instant? {
+        val allAccounts = accountRepository.findAll()
+        val targetIds = if (accountIds.isEmpty()) {
+            allAccounts.map { it.id }.toSet()
+        } else {
+            accountIds.toSet()
+        }
+
+        var earliest: Instant? = null
+        for (id in targetIds) {
+            val transactions = transactionRepository.findAllByAccountAndBetween(
+                accountId = id,
+                startDate = Instant.EPOCH,
+                endDate = Instant.now(),
+            )
+            for (txn in transactions) {
+                val t = txn.time
+                if (earliest == null || t < earliest) {
+                    earliest = t
+                }
+            }
+        }
+        return earliest
+    }
+
     private fun computeNewState(
         config: ZakatConfig,
         isAboveNisab: Boolean,
-        now: Long,
+        nisabReachedDate: Long,
     ): StateTransition {
         return when (config.trackingState) {
             ZakatTrackingState.CONFIGURED -> {
                 if (isAboveNisab) {
-                    StateTransition(ZakatTrackingState.NISAB_REACHED, now)
+                    StateTransition(ZakatTrackingState.NISAB_REACHED, nisabReachedDate)
                 } else {
                     StateTransition(ZakatTrackingState.CONFIGURED, null)
                 }
@@ -194,7 +307,7 @@ class CheckZakatNisabUseCase @Inject constructor(
                     // Wealth dropped below Nisab — reset
                     StateTransition(ZakatTrackingState.CONFIGURED, null)
                 } else {
-                    val reachedDate = config.nisabReachedDate ?: now
+                    val reachedDate = config.nisabReachedDate ?: nisabReachedDate
                     if (HijriCalendarUtils.isHawlComplete(reachedDate, config.hijriOffset)) {
                         StateTransition(ZakatTrackingState.HAWL_COMPLETE, reachedDate)
                     } else {
@@ -208,7 +321,8 @@ class CheckZakatNisabUseCase @Inject constructor(
                 StateTransition(ZakatTrackingState.HAWL_COMPLETE, reachedDate)
             }
             ZakatTrackingState.ZAKAT_PAID -> {
-                // Start a new cycle
+                // Start a new cycle from current time
+                val now = System.currentTimeMillis()
                 if (isAboveNisab) {
                     StateTransition(ZakatTrackingState.NISAB_REACHED, now)
                 } else {

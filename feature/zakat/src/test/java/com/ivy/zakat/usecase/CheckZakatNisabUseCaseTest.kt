@@ -3,15 +3,22 @@ package com.ivy.zakat.usecase
 import arrow.core.Option
 import com.ivy.data.model.Account
 import com.ivy.data.model.AccountId
+import com.ivy.data.model.Expense
 import com.ivy.data.model.NisabStandard
 import com.ivy.data.model.PriceSource
+import com.ivy.data.model.Transaction
+import com.ivy.data.model.TransactionId
+import com.ivy.data.model.TransactionMetadata
 import com.ivy.data.model.ZakatConfig
 import com.ivy.data.model.ZakatConfigId
 import com.ivy.data.model.ZakatTrackingState
+import com.ivy.data.model.PositiveValue
 import com.ivy.data.model.primitive.AssetCode
 import com.ivy.data.model.primitive.ColorInt
 import com.ivy.data.model.primitive.NotBlankTrimmedString
+import com.ivy.data.model.primitive.PositiveDouble
 import com.ivy.data.repository.AccountRepository
+import com.ivy.data.repository.TransactionRepository
 import com.ivy.data.repository.ZakatConfigRepository
 import com.ivy.wallet.domain.action.account.CalcAccBalanceAct
 import com.ivy.wallet.domain.action.exchange.ExchangeAct
@@ -27,6 +34,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import java.math.BigDecimal
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -36,6 +44,7 @@ import java.util.UUID
 class CheckZakatNisabUseCaseTest {
 
     private val accountRepository = mockk<AccountRepository>()
+    private val transactionRepository = mockk<TransactionRepository>(relaxed = true)
     private val calcAccBalanceAct = mockk<CalcAccBalanceAct>()
     private val exchangeAct = mockk<ExchangeAct>()
     private val zakatConfigRepository = mockk<ZakatConfigRepository>()
@@ -44,6 +53,7 @@ class CheckZakatNisabUseCaseTest {
 
     private val useCase = CheckZakatNisabUseCase(
         accountRepository = accountRepository,
+        transactionRepository = transactionRepository,
         calcAccBalanceAct = calcAccBalanceAct,
         exchangeAct = exchangeAct,
         zakatConfigRepository = zakatConfigRepository,
@@ -300,6 +310,67 @@ class CheckZakatNisabUseCaseTest {
         result.config.nisabAmount shouldBe 0.0
         result.config.trackingState shouldBe ZakatTrackingState.CONFIGURED
         result.config.zakatDue shouldBe 0.0
+    }
+
+    @Test
+    fun `CONFIGURED with historical wealth above nisab uses earliest transaction date`() = runTest {
+        // User has had wealth above nisab for 300 days. Earliest transaction is 300 days ago.
+        // The nisabReachedDate should reflect the historical crossing, not now.
+        val account = account(balance = 36_000.0)
+        val earliestDate = Instant.now().minusSeconds(300 * 86_400L)
+        val dummyTransaction: Transaction = Expense(
+            id = TransactionId(UUID.randomUUID()),
+            title = null,
+            description = null,
+            category = null,
+            time = earliestDate,
+            settled = true,
+            metadata = TransactionMetadata(null, null, loanRecordId = null),
+            tags = emptyList(),
+            value = PositiveValue(
+                amount = PositiveDouble.unsafe(36000.0),
+                asset = AssetCode.USD,
+            ),
+            account = account.id,
+        )
+
+        coEvery { baseCurrencyAct(Unit) } returns "USD"
+        coEvery { accountRepository.findAll() } returns listOf(account)
+        coEvery {
+            calcAccBalanceAct(match<CalcAccBalanceAct.Input> { it.account.id == account.id })
+        } returns CalcAccBalanceAct.Output(account = account, balance = BigDecimal("36000"))
+        coEvery { exchangeAct(any()) } answers {
+            val input = firstArg<ExchangeAct.Input>()
+            Option.fromNullable(input.amount)
+        }
+        coEvery { zakatConfigRepository.save(any()) } just Runs
+        coEvery { fetchMetalPricesUseCase.fetch() } returns FetchMetalPricesUseCase.MetalPrices(
+            goldPricePerGram = 250.0,
+            silverPricePerGram = 3.0,
+            baseCurrency = "USD",
+        )
+        coEvery {
+            transactionRepository.findAllByAccountAndBetween(
+                accountId = account.id,
+                startDate = Instant.EPOCH,
+                endDate = any(),
+            )
+        } returns listOf(dummyTransaction)
+
+        val config = zakatConfig(
+            state = ZakatTrackingState.CONFIGURED,
+            nisabReachedDate = null,
+            accountIds = listOf(account.id),
+        )
+
+        val result = useCase.check(config)
+
+        result.config.trackingState shouldBe ZakatTrackingState.NISAB_REACHED
+        result.config.nisabReachedDate.shouldNotBeNull()
+        // Should be close to the earliest transaction date, not now
+        val diff = result.config.nisabReachedDate!! - earliestDate.toEpochMilli()
+        val toleranceMs = 5_000L // 5 seconds tolerance for test execution
+        (diff >= -toleranceMs && diff <= toleranceMs) shouldBe true
     }
 
     // --- helpers ---------------------------------------------------------------------------
