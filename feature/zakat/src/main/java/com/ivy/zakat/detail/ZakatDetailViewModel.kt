@@ -21,7 +21,6 @@ import com.ivy.ui.ComposeViewModel
 import com.ivy.wallet.domain.action.settings.BaseCurrencyAct
 import com.ivy.zakat.model.AccountBalance
 import com.ivy.zakat.usecase.FetchMetalPricesUseCase
-import com.ivy.zakat.usecase.HijriCalendarUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -226,15 +225,6 @@ class ZakatDetailViewModel @Inject constructor(
                 ?: (zakatConfigRepository.findMaxOrderNum() + 1.0)
 
             val offset = hijriOffset.value.toIntOrNull() ?: 0
-            val now = System.currentTimeMillis()
-            val hawlEnd = if (existingConfig?.nisabReachedDate != null) {
-                HijriCalendarUtils.hawlEndDateMillis(
-                    existingConfig.nisabReachedDate!!,
-                    offset
-                )
-            } else {
-                HijriCalendarUtils.hawlEndDateMillis(now, offset)
-            }
 
             val config = ZakatConfig(
                 id = id,
@@ -253,8 +243,8 @@ class ZakatDetailViewModel @Inject constructor(
                 trackingState = existingConfig?.trackingState
                     ?: ZakatTrackingState.CONFIGURED,
                 nisabReachedDate = existingConfig?.nisabReachedDate,
-                hawlStartDate = existingConfig?.hawlStartDate ?: now,
-                hawlEndDate = hawlEnd,
+                hawlStartDate = existingConfig?.hawlStartDate ?: 0L,
+                hawlEndDate = existingConfig?.hawlEndDate ?: 0L,
                 lastCheckDate = existingConfig?.lastCheckDate,
                 lastCheckWealth = existingConfig?.lastCheckWealth,
                 goldPricePerGram = existingConfig?.goldPricePerGram ?: 0.0,
