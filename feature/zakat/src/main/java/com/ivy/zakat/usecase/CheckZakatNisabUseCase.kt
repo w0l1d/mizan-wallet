@@ -211,22 +211,42 @@ class CheckZakatNisabUseCase @Inject constructor(
         silverPrice: Double,
         baseCurrency: String,
     ): Long? {
-        if (currentWealth < nisabThreshold) return null
-
-        val accountIds = config.accountIds
-        val earliestDate = findEarliestTransactionDate(accountIds) ?: return null
-
-        // Check balance at the earliest transaction date
-        val balanceAtEarliest = computeTotalWealthAt(
-            accountIds, earliestDate, goldPrice, silverPrice, baseCurrency,
-        ) + config.physicalGoldGrams * goldPrice + config.physicalSilverGrams * silverPrice
-
-        val netAtEarliest = (balanceAtEarliest - config.deductions).coerceAtLeast(0.0)
-        if (netAtEarliest >= nisabThreshold) {
-            return earliestDate.toEpochMilli()
+        val earliestDate = if (currentWealth >= nisabThreshold) {
+            findEarliestTransactionDate(config.accountIds)
+        } else {
+            null
         }
 
-        // Binary search between earliest date and now
+        if (earliestDate == null) return null
+
+        val balanceAtEarliest = computeTotalWealthAt(
+            config.accountIds, earliestDate, baseCurrency,
+        ) + config.physicalGoldGrams * goldPrice + config.physicalSilverGrams * silverPrice
+        val netAtEarliest = (balanceAtEarliest - config.deductions).coerceAtLeast(0.0)
+
+        return if (netAtEarliest >= nisabThreshold) {
+            earliestDate.toEpochMilli()
+        } else {
+            binarySearchNisabDate(
+                config = config,
+                nisabThreshold = nisabThreshold,
+                earliestDate = earliestDate,
+                goldPrice = goldPrice,
+                silverPrice = silverPrice,
+                baseCurrency = baseCurrency,
+            )
+        }
+    }
+
+    private suspend fun binarySearchNisabDate(
+        config: ZakatConfig,
+        nisabThreshold: Double,
+        earliestDate: Instant,
+        goldPrice: Double,
+        silverPrice: Double,
+        baseCurrency: String,
+    ): Long? {
+        val accountIds = config.accountIds
         val now = System.currentTimeMillis()
         var low = earliestDate.toEpochMilli()
         var high = now
@@ -236,13 +256,13 @@ class CheckZakatNisabUseCase @Inject constructor(
             val mid = low + (high - low) / 2
             val midInstant = Instant.ofEpochMilli(mid)
             val balance = computeTotalWealthAt(
-                accountIds, midInstant, goldPrice, silverPrice, baseCurrency,
+                accountIds, midInstant, baseCurrency,
             ) + config.physicalGoldGrams * goldPrice + config.physicalSilverGrams * silverPrice
             val netWealth = (balance - config.deductions).coerceAtLeast(0.0)
 
             if (netWealth >= nisabThreshold) {
                 result = mid
-                high = mid - 1 // search left for an earlier date
+                high = mid - 1
             } else {
                 low = mid + 1
             }
@@ -254,8 +274,6 @@ class CheckZakatNisabUseCase @Inject constructor(
     private suspend fun computeTotalWealthAt(
         accountIds: List<AccountId>,
         date: Instant,
-        goldPrice: Double,
-        silverPrice: Double,
         baseCurrency: String,
     ): Double {
         val balances = calculateAccountBalances(accountIds, baseCurrency, endDate = date)
