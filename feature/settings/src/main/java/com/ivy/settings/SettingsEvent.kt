@@ -15,6 +15,8 @@ sealed interface SettingsEvent {
     data class SetTransfersAsIncomeExpense(val treatTransfersAsIncomeExpense: Boolean) :
         SettingsEvent
 
+    data class SetTransfersToExcludedAsExpense(val enabled: Boolean) : SettingsEvent
+    data class SetTransfersFromExcludedAsIncome(val enabled: Boolean) : SettingsEvent
     data class SetStartDateOfMonth(val startDate: Int) : SettingsEvent
     data object DeleteCloudUserData : SettingsEvent
     data object DeleteAllUserData : SettingsEvent
