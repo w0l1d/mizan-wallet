@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,7 +88,7 @@ private fun BoxWithConstraintsScope.UI(
     val nav = navigation()
     val ivyContext = com.ivy.legacy.ivyWalletCtx()
     var listState = rememberLazyListState()
-    var choosePeriodModal by mutableStateOf<ChoosePeriodModalData?>(null)
+    var choosePeriodModal by remember { mutableStateOf<ChoosePeriodModalData?>(null) }
     if (!state.accountsData.isEmpty()) {
         listState = rememberScrollPositionListState(
             key = "accounts_lazy_column",
@@ -463,8 +464,13 @@ private fun PreviewAccountsTabCompactModeDisabled(theme: Theme = Theme.LIGHT) {
             reorderVisible = false,
             compactAccountsModeEnabled = false,
             hideTotalBalance = false,
-            period = com.ivy.legacy.data.model.TimePeriod.currentMonth(startDayOfMonth = 1),
-            periodDisplayText = "July 2026"
+            period = com.ivy.legacy.data.model.TimePeriod(
+                fromToRange = com.ivy.legacy.data.model.FromToTimeRange(
+                    from = null,
+                    to = java.time.Instant.now()
+                )
+            ),
+            periodDisplayText = "All Time"
         )
         UI(state = state)
     }
@@ -552,8 +558,13 @@ private fun PreviewAccountsTabCompactModeEnabled(theme: Theme = Theme.LIGHT) {
             reorderVisible = false,
             compactAccountsModeEnabled = true,
             hideTotalBalance = false,
-            period = com.ivy.legacy.data.model.TimePeriod.currentMonth(startDayOfMonth = 1),
-            periodDisplayText = "July 2026"
+            period = com.ivy.legacy.data.model.TimePeriod(
+                fromToRange = com.ivy.legacy.data.model.FromToTimeRange(
+                    from = null,
+                    to = java.time.Instant.now()
+                )
+            ),
+            periodDisplayText = "All Time"
         )
         UI(state = state)
     }

@@ -18,6 +18,7 @@ import com.ivy.data.repository.AccountRepository
 import com.ivy.domain.features.Features
 import com.ivy.legacy.IvyWalletCtx
 import com.ivy.legacy.data.model.AccountData
+import com.ivy.legacy.data.model.FromToTimeRange
 import com.ivy.legacy.data.model.TimePeriod
 import com.ivy.legacy.data.model.toCloseTimeRange
 import com.ivy.legacy.utils.format
@@ -61,7 +62,12 @@ class AccountsViewModel @Inject constructor(
     private var totalBalanceWithoutExcludedText by mutableStateOf("")
     private var reorderVisible by mutableStateOf(false)
     private var selectedPeriod by mutableStateOf(
-        TimePeriod.currentMonth(startDayOfMonth = ivyContext.startDayOfMonth)
+        TimePeriod(
+            fromToRange = FromToTimeRange(
+                from = null,
+                to = timeProvider.utcNow()
+            )
+        )
     )
     private var periodDisplayText by mutableStateOf("")
 
@@ -278,7 +284,12 @@ class AccountsViewModel @Inject constructor(
                 monthName
             }
         } else if (period.fromToRange != null) {
-            "Custom Range"
+            val range = period.fromToRange!!
+            if (range.from == null) {
+                "All Time"
+            } else {
+                "Custom Range"
+            }
         } else if (period.lastNRange != null) {
             val lastN = period.lastNRange!!
             "Last ${lastN.forDisplay()}"
