@@ -470,7 +470,7 @@ private fun PreviewAccountsTabCompactModeDisabled(theme: Theme = Theme.LIGHT) {
                     to = java.time.Instant.now()
                 )
             ),
-            periodDisplayText = "All Time"
+            periodDisplayText = "Up to Now"
         )
         UI(state = state)
     }
@@ -564,7 +564,7 @@ private fun PreviewAccountsTabCompactModeEnabled(theme: Theme = Theme.LIGHT) {
                     to = java.time.Instant.now()
                 )
             ),
-            periodDisplayText = "All Time"
+            periodDisplayText = "Up to Now"
         )
         UI(state = state)
     }
