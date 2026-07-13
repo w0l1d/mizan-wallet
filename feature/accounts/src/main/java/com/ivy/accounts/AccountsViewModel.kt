@@ -18,6 +18,7 @@ import com.ivy.data.repository.AccountRepository
 import com.ivy.domain.features.Features
 import com.ivy.legacy.IvyWalletCtx
 import com.ivy.legacy.data.model.AccountData
+import com.ivy.legacy.data.model.TimePeriod
 import com.ivy.legacy.data.model.toCloseTimeRange
 import com.ivy.legacy.utils.format
 import com.ivy.legacy.utils.ioThread
@@ -59,6 +60,10 @@ class AccountsViewModel @Inject constructor(
     private var totalBalanceWithoutExcluded by mutableStateOf("")
     private var totalBalanceWithoutExcludedText by mutableStateOf("")
     private var reorderVisible by mutableStateOf(false)
+    private var selectedPeriod by mutableStateOf(
+        TimePeriod.currentMonth(startDayOfMonth = ivyContext.startDayOfMonth)
+    )
+    private var periodDisplayText by mutableStateOf("")
 
     init {
         viewModelScope.launch {
@@ -91,7 +96,9 @@ class AccountsViewModel @Inject constructor(
             totalBalanceWithoutExcludedText = getTotalBalanceWithoutExcludedText(),
             reorderVisible = getReorderVisible(),
             compactAccountsModeEnabled = getCompactAccountsMode(),
-            hideTotalBalance = getHideTotalBalance()
+            hideTotalBalance = getHideTotalBalance(),
+            period = getSelectedPeriod(),
+            periodDisplayText = getPeriodDisplayText()
         )
     }
 
@@ -140,12 +147,50 @@ class AccountsViewModel @Inject constructor(
         return features.compactAccountsMode.asEnabledState()
     }
 
+    @Composable
+    private fun getSelectedPeriod(): TimePeriod {
+        return selectedPeriod
+    }
+
+    @Composable
+    private fun getPeriodDisplayText(): String {
+        return periodDisplayText
+    }
+
     override fun onEvent(event: AccountsEvent) {
         viewModelScope.launch(Dispatchers.Default) {
             when (event) {
                 is AccountsEvent.OnReorder -> reorder(event.reorderedList)
                 is AccountsEvent.OnReorderModalVisible -> reorderModalVisible(event.reorderVisible)
+                is AccountsEvent.SetPeriod -> setPeriod(event.period)
+                is AccountsEvent.SelectNextMonth -> onSelectNextMonth()
+                is AccountsEvent.SelectPreviousMonth -> onSelectPreviousMonth()
             }
+        }
+    }
+
+    private suspend fun setPeriod(period: TimePeriod) {
+        selectedPeriod = period
+        startInternally()
+    }
+
+    private suspend fun onSelectNextMonth() {
+        val month = selectedPeriod.month
+        val year = selectedPeriod.year ?: timeProvider.localNow().year
+        val nextPeriod = month?.incrementMonthPeriod(ivyContext, 1L, year = year)
+        if (nextPeriod != null) {
+            selectedPeriod = nextPeriod
+            startInternally()
+        }
+    }
+
+    private suspend fun onSelectPreviousMonth() {
+        val month = selectedPeriod.month
+        val year = selectedPeriod.year ?: timeProvider.localNow().year
+        val prevPeriod = month?.incrementMonthPeriod(ivyContext, -1L, year = year)
+        if (prevPeriod != null) {
+            selectedPeriod = prevPeriod
+            startInternally()
         }
     }
 
@@ -166,9 +211,8 @@ class AccountsViewModel @Inject constructor(
     }
 
     private suspend fun startInternally() {
-        val period = com.ivy.legacy.data.model.TimePeriod.currentMonth(
-            startDayOfMonth = ivyContext.startDayOfMonth
-        ) // this must be monthly
+        val period = selectedPeriod
+        periodDisplayText = buildPeriodDisplayText(period)
         val range = period.toRange(ivyContext.startDayOfMonth, timeConverter, timeProvider)
 
         val baseCurrencyCode = baseCurrencyAct(Unit)
@@ -221,5 +265,25 @@ class AccountsViewModel @Inject constructor(
 
     private fun reorderModalVisible(visible: Boolean) {
         reorderVisible = visible
+    }
+
+    private fun buildPeriodDisplayText(period: TimePeriod): String {
+        val month = period.month
+        return if (month != null) {
+            val monthName = month.name
+            val year = period.year
+            if (year != null && year != timeProvider.localNow().year) {
+                "$monthName $year"
+            } else {
+                monthName
+            }
+        } else if (period.fromToRange != null) {
+            "Custom Range"
+        } else if (period.lastNRange != null) {
+            val lastN = period.lastNRange!!
+            "Last ${lastN.forDisplay()}"
+        } else {
+            "All Time"
+        }
     }
 }

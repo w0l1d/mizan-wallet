@@ -19,6 +19,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +43,8 @@ import com.ivy.data.model.primitive.NotBlankTrimmedString
 import com.ivy.design.l0_system.UI
 import com.ivy.design.l0_system.style
 import com.ivy.legacy.IvyWalletPreview
+import com.ivy.wallet.ui.theme.modal.ChoosePeriodModal
+import com.ivy.wallet.ui.theme.modal.ChoosePeriodModalData
 import com.ivy.legacy.data.model.AccountData
 import com.ivy.legacy.utils.clickableNoIndication
 import com.ivy.legacy.utils.horizontalSwipeListener
@@ -82,6 +87,7 @@ private fun BoxWithConstraintsScope.UI(
     val nav = navigation()
     val ivyContext = com.ivy.legacy.ivyWalletCtx()
     var listState = rememberLazyListState()
+    var choosePeriodModal by mutableStateOf<ChoosePeriodModalData?>(null)
     if (!state.accountsData.isEmpty()) {
         listState = rememberScrollPositionListState(
             key = "accounts_lazy_column",
@@ -135,6 +141,37 @@ private fun BoxWithConstraintsScope.UI(
 
                 Spacer(Modifier.width(24.dp))
             }
+
+            // Period selector
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 24.dp)
+                    .fillMaxWidth()
+                    .clip(UI.shapes.r2)
+                    .border(1.dp, UI.colors.medium, UI.shapes.r2)
+                    .clickable { choosePeriodModal = ChoosePeriodModalData(period = state.period) }
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.period),
+                    style = UI.typo.b2.style(
+                        color = UI.colors.gray,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = state.periodDisplayText,
+                    style = UI.typo.b2.style(
+                        color = UI.colors.pureInverse,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+
             if (!state.hideTotalBalance) {
                 Column {
                     Spacer(Modifier.height(16.dp))
@@ -200,6 +237,15 @@ private fun BoxWithConstraintsScope.UI(
             )
         )
     }
+
+    ChoosePeriodModal(
+        modal = choosePeriodModal,
+        dismiss = { choosePeriodModal = null },
+        onPeriodSelected = { newPeriod ->
+            choosePeriodModal = null
+            onEvent(AccountsEvent.SetPeriod(newPeriod))
+        }
+    )
 }
 
 @Composable
@@ -416,7 +462,9 @@ private fun PreviewAccountsTabCompactModeDisabled(theme: Theme = Theme.LIGHT) {
             totalBalanceWithoutExcludedText = "BGN 25.54",
             reorderVisible = false,
             compactAccountsModeEnabled = false,
-            hideTotalBalance = false
+            hideTotalBalance = false,
+            period = com.ivy.legacy.data.model.TimePeriod.currentMonth(startDayOfMonth = 1),
+            periodDisplayText = "July 2026"
         )
         UI(state = state)
     }
@@ -503,7 +551,9 @@ private fun PreviewAccountsTabCompactModeEnabled(theme: Theme = Theme.LIGHT) {
             totalBalanceWithoutExcludedText = "BGN 25.54",
             reorderVisible = false,
             compactAccountsModeEnabled = true,
-            hideTotalBalance = false
+            hideTotalBalance = false,
+            period = com.ivy.legacy.data.model.TimePeriod.currentMonth(startDayOfMonth = 1),
+            periodDisplayText = "July 2026"
         )
         UI(state = state)
     }

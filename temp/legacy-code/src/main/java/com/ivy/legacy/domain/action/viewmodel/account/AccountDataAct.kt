@@ -25,7 +25,8 @@ class AccountDataAct @Inject constructor(
     } thenMap { acc ->
         val balance = calcAccBalanceAct(
             CalcAccBalanceAct.Input(
-                account = acc
+                account = acc,
+                range = range
             )
         ).balance
 
