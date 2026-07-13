@@ -129,13 +129,8 @@ jobs:
             STATUS="All clear"
           fi
 
-          MESSAGE="${EMOJI} *Dependency Audit — ${STATUS}*
-
-\`\`\`
-${REPORT_CONTENT}
-\`\`\`
-
-🔗 [Full report](${RUN_URL})"
+          printf -v MESSAGE '%s *Dependency Audit -- %s*\n\n```\n%s\n```\n\n🔗 [Full report](%s)' \
+            "${EMOJI}" "${STATUS}" "${REPORT_CONTENT}" "${RUN_URL}"
 
           curl -s -X POST \
             -H "Content-Type: application/json" \

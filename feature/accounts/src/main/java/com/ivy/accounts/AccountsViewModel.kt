@@ -286,7 +286,7 @@ class AccountsViewModel @Inject constructor(
         } else if (period.fromToRange != null) {
             val range = period.fromToRange!!
             if (range.from == null) {
-                "All Time"
+                "Up to Now"
             } else {
                 "Custom Range"
             }
