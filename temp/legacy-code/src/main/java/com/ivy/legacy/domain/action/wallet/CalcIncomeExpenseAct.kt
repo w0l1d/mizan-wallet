@@ -5,6 +5,7 @@ import arrow.core.toOption
 import com.ivy.frp.action.FPAction
 import com.ivy.frp.action.thenMap
 import com.ivy.frp.then
+import com.ivy.data.model.Transfer
 import com.ivy.legacy.datamodel.Account
 import com.ivy.wallet.domain.action.account.AccTrnsAct
 import com.ivy.wallet.domain.action.exchange.ExchangeAct
@@ -15,6 +16,7 @@ import com.ivy.wallet.domain.pure.exchange.ExchangeData
 import com.ivy.legacy.domain.pure.transaction.AccountValueFunctions
 import com.ivy.wallet.domain.pure.transaction.foldTransactions
 import com.ivy.wallet.domain.pure.util.orZero
+import java.math.BigDecimal
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -62,9 +64,61 @@ class CalcIncomeExpenseAct @Inject constructor(
             ).orZero()
         }
     } then { statsList ->
+        var totalIncome = statsList.sumOf { it[0] }
+        var totalExpense = statsList.sumOf { it[1] }
+
+        // Add transfers to/from excluded accounts if corresponding flags are enabled
+        val excludedAccountIds = accounts.filter { !it.includeInBalance }.map { it.id }.toSet()
+        val hasExcludedAccounts = excludedAccountIds.isNotEmpty()
+
+        if (hasExcludedAccounts &&
+            (transfersToExcludedAsExpense || transfersFromExcludedAsIncome)
+        ) {
+            val includedAccounts = accounts.filter { it.includeInBalance }
+
+            for (acc in includedAccounts) {
+                val allTrns = accTrnsAct(
+                    AccTrnsAct.Input(accountId = acc.id, range = range)
+                )
+                val transfers = allTrns.filterIsInstance<Transfer>()
+
+                for (transfer in transfers) {
+                    val toExcluded = transfer.toAccount.value in excludedAccountIds
+                    val fromExcluded = transfer.fromAccount.value in excludedAccountIds
+                    val isSelfTransfer = transfer.fromAccount.value == transfer.toAccount.value
+
+                    if (isSelfTransfer) continue
+
+                    if (transfersToExcludedAsExpense && toExcluded && !fromExcluded) {
+                        totalExpense += exchangeAct(
+                            ExchangeAct.Input(
+                                data = ExchangeData(
+                                    baseCurrency = baseCurrency,
+                                    fromCurrency = (acc.currency ?: baseCurrency).toOption()
+                                ),
+                                amount = transfer.fromValue.amount.value.toBigDecimal()
+                            )
+                        ).orZero()
+                    }
+
+                    if (transfersFromExcludedAsIncome && fromExcluded && !toExcluded) {
+                        totalIncome += exchangeAct(
+                            ExchangeAct.Input(
+                                data = ExchangeData(
+                                    baseCurrency = baseCurrency,
+                                    fromCurrency = (acc.currency ?: baseCurrency).toOption()
+                                ),
+                                amount = transfer.toValue.amount.value.toBigDecimal()
+                            )
+                        ).orZero()
+                    }
+                }
+            }
+        }
+
         IncomeExpensePair(
-            income = statsList.sumOf { it[0] },
-            expense = statsList.sumOf { it[1] }
+            income = totalIncome,
+            expense = totalExpense
         )
     }
 
@@ -72,5 +126,7 @@ class CalcIncomeExpenseAct @Inject constructor(
         val baseCurrency: String,
         val accounts: List<Account>,
         val range: ClosedTimeRange,
+        val transfersToExcludedAsExpense: Boolean = false,
+        val transfersFromExcludedAsIncome: Boolean = false,
     )
 }

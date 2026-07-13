@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
+import com.ivy.base.legacy.SharedPrefs
 import com.ivy.base.legacy.Theme
 import com.ivy.base.legacy.Transaction
 import com.ivy.base.legacy.TransactionHistoryItem
@@ -89,6 +90,7 @@ class HomeViewModel @Inject constructor(
     private val updateAccCacheAct: UpdateAccCacheAct,
     private val updateCategoriesCacheAct: UpdateCategoriesCacheAct,
     private val syncExchangeRatesUseCase: SyncExchangeRatesUseCase,
+    private val sharedPrefs: SharedPrefs,
     private val transactionMapper: TransactionMapper,
     private val timeProvider: TimeProvider,
     private val timeConverter: TimeConverter,
@@ -324,7 +326,13 @@ class HomeViewModel @Inject constructor(
             CalcIncomeExpenseAct.Input(
                 baseCurrency = settings.baseCurrency,
                 accounts = accounts,
-                range = timeRange
+                range = timeRange,
+                transfersToExcludedAsExpense = sharedPrefs.getBoolean(
+                    SharedPrefs.TRANSFERS_TO_EXCLUDED_AS_EXPENSE, false
+                ),
+                transfersFromExcludedAsIncome = sharedPrefs.getBoolean(
+                    SharedPrefs.TRANSFERS_FROM_EXCLUDED_AS_INCOME, false
+                ),
             )
         )
 
