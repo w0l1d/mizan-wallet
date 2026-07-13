@@ -4,15 +4,64 @@ on:
   push:
     branches:
       - main
+    tags:
+      - '*'
   pull_request:
   workflow_dispatch:
 
 jobs:
+  auto_tag:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout GIT
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if commit is already tagged
+        id: check_tag
+        run: |
+          EXISTING_TAG=$(git tag --points-at HEAD)
+          if [ -n "$EXISTING_TAG" ]; then
+            echo "Commit already tagged: $EXISTING_TAG"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "No tag found on this commit"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get version from libs.versions.toml
+        if: steps.check_tag.outputs.skip == 'false'
+        id: get_version
+        run: |
+          VERSION_NAME=$(grep 'version-name =' gradle/libs.versions.toml | awk -F'=' '{print $2}' | tr -d ' "')
+          VERSION_CODE=$(grep 'version-code =' gradle/libs.versions.toml | awk -F'=' '{print $2}' | tr -d ' "')
+          TAG_NAME="v${VERSION_NAME}-${VERSION_CODE}"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        if: steps.check_tag.outputs.skip == 'false'
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git tag ${{ steps.get_version.outputs.tag_name }}
+          git push origin ${{ steps.get_version.outputs.tag_name }}
+
   assemble_demo_apk:
+    needs: auto_tag
+    if: |
+      always() &&
+      (needs.auto_tag.result == 'success' || needs.auto_tag.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout GIT
         uses: actions/checkout@v4
+
+      - name: Fetch tags
+        run: git fetch --tags
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -39,13 +88,20 @@ jobs:
           path: app/build/outputs/apk/demo/app-demo.apk
 
       - name: Upload APK in Telegram Group
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         run: |
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c 1-7)
           COMMIT_LINK="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
           COMMIT_MESSAGE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}" | jq -r .commit.message | cut -c 1-100)
           APK_SHA256=$(sha256sum app/build/outputs/apk/demo/app-demo.apk | awk '{print $1}')
-          CAPTION=$'📦 Mizan Wallet Demo APK\n\n'"$COMMIT_MESSAGE"$'\n\n🔖 Commit: '"$SHORT_SHA"$'\n🔗 '"$COMMIT_LINK"$'\n🔐 SHA-256: '"$APK_SHA256"
+
+          TAG_INFO=""
+          TAG_NAME=$(git tag --points-at HEAD | head -1)
+          if [ -n "$TAG_NAME" ]; then
+            TAG_INFO=$'\n\n🏷️ Tag: '"$TAG_NAME"
+          fi
+
+          CAPTION=$'📦 Mizan Wallet Demo APK\n\n'"$COMMIT_MESSAGE"$'\n\n🔖 Commit: '"$SHORT_SHA"$'\n🔗 '"$COMMIT_LINK"$TAG_INFO$'\n🔐 SHA-256: '"$APK_SHA256"
 
           curl -F "chat_id=-1003694191301" \
                -F "message_thread_id=14" \
