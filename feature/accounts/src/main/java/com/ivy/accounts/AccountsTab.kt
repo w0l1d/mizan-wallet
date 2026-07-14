@@ -148,21 +148,12 @@ private fun BoxWithConstraintsScope.UI(
             Row(
                 modifier = Modifier
                     .padding(horizontal = 24.dp)
-                    .fillMaxWidth()
                     .clip(UI.shapes.r2)
                     .border(1.dp, UI.colors.medium, UI.shapes.r2)
                     .clickable { choosePeriodModal = ChoosePeriodModalData(period = state.period) }
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = stringResource(R.string.period),
-                    style = UI.typo.b2.style(
-                        color = UI.colors.gray,
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-                Spacer(Modifier.width(8.dp))
                 Text(
                     text = state.periodDisplayText,
                     style = UI.typo.b2.style(
