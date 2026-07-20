@@ -62,15 +62,15 @@ class AccountsViewModel @Inject constructor(
     private var totalBalanceWithoutExcluded by mutableStateOf("")
     private var totalBalanceWithoutExcludedText by mutableStateOf("")
     private var reorderVisible by mutableStateOf(false)
-    private var selectedPeriod by mutableStateOf(
-        TimePeriod(
-            fromToRange = FromToTimeRange(
-                from = null,
-                to = timeProvider.utcNow()
-            )
+    private val initialPeriod = TimePeriod(
+        fromToRange = FromToTimeRange(
+            from = null,
+            to = timeProvider.utcNow()
         )
     )
+    private var selectedPeriod by mutableStateOf(initialPeriod)
     private var periodDisplayText by mutableStateOf("")
+    private var isCustomPeriod by mutableStateOf(false)
 
     init {
         viewModelScope.launch {
@@ -105,7 +105,8 @@ class AccountsViewModel @Inject constructor(
             compactAccountsModeEnabled = getCompactAccountsMode(),
             hideTotalBalance = getHideTotalBalance(),
             period = getSelectedPeriod(),
-            periodDisplayText = getPeriodDisplayText()
+            periodDisplayText = getPeriodDisplayText(),
+            isCustomPeriod = getIsCustomPeriod()
         )
     }
 
@@ -164,6 +165,11 @@ class AccountsViewModel @Inject constructor(
         return periodDisplayText
     }
 
+    @Composable
+    private fun getIsCustomPeriod(): Boolean {
+        return isCustomPeriod
+    }
+
     override fun onEvent(event: AccountsEvent) {
         viewModelScope.launch(Dispatchers.Default) {
             when (event) {
@@ -172,12 +178,14 @@ class AccountsViewModel @Inject constructor(
                 is AccountsEvent.SetPeriod -> setPeriod(event.period)
                 is AccountsEvent.SelectNextMonth -> onSelectNextMonth()
                 is AccountsEvent.SelectPreviousMonth -> onSelectPreviousMonth()
+                is AccountsEvent.ResetPeriod -> resetPeriod()
             }
         }
     }
 
     private suspend fun setPeriod(period: TimePeriod) {
         selectedPeriod = period
+        isCustomPeriod = true
         startInternally()
     }
 
@@ -187,6 +195,7 @@ class AccountsViewModel @Inject constructor(
         val nextPeriod = month?.incrementMonthPeriod(ivyContext, 1L, year = year)
         if (nextPeriod != null) {
             selectedPeriod = nextPeriod
+            isCustomPeriod = true
             startInternally()
         }
     }
@@ -197,8 +206,15 @@ class AccountsViewModel @Inject constructor(
         val prevPeriod = month?.incrementMonthPeriod(ivyContext, -1L, year = year)
         if (prevPeriod != null) {
             selectedPeriod = prevPeriod
+            isCustomPeriod = true
             startInternally()
         }
+    }
+
+    private suspend fun resetPeriod() {
+        selectedPeriod = initialPeriod
+        isCustomPeriod = false
+        startInternally()
     }
 
     private suspend fun reorder(newOrder: List<AccountData>) {

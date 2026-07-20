@@ -18,4 +18,5 @@ data class AccountsState(
     val hideTotalBalance: Boolean,
     val period: TimePeriod,
     val periodDisplayText: String,
+    val isCustomPeriod: Boolean,
 )

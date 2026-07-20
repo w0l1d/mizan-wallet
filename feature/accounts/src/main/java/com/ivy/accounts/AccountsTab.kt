@@ -60,6 +60,7 @@ import com.ivy.wallet.ui.theme.Green
 import com.ivy.wallet.ui.theme.GreenLight
 import com.ivy.wallet.ui.theme.components.BalanceRow
 import com.ivy.wallet.ui.theme.components.BalanceRowMini
+import com.ivy.wallet.ui.theme.components.CircleButton
 import com.ivy.wallet.ui.theme.components.ItemIconSDefaultIcon
 import com.ivy.wallet.ui.theme.components.ReorderButton
 import com.ivy.wallet.ui.theme.components.ReorderModalSingleType
@@ -149,18 +150,28 @@ private fun BoxWithConstraintsScope.UI(
                 modifier = Modifier
                     .padding(horizontal = 24.dp)
                     .clip(UI.shapes.r2)
-                    .border(1.dp, UI.colors.medium, UI.shapes.r2)
-                    .clickable { choosePeriodModal = ChoosePeriodModalData(period = state.period) }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .border(1.dp, UI.colors.medium, UI.shapes.r2),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
+                    modifier = Modifier
+                        .clickable { choosePeriodModal = ChoosePeriodModalData(period = state.period) }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     text = state.periodDisplayText,
                     style = UI.typo.b2.style(
                         color = UI.colors.pureInverse,
                         fontWeight = FontWeight.ExtraBold
                     )
                 )
+
+                if (state.isCustomPeriod) {
+                    CircleButton(
+                        modifier = Modifier.padding(end = 8.dp),
+                        icon = R.drawable.ic_dismiss,
+                        contentDescription = stringResource(R.string.reset),
+                        onClick = { onEvent(AccountsEvent.ResetPeriod) }
+                    )
+                }
             }
             Spacer(Modifier.height(8.dp))
 
@@ -461,7 +472,8 @@ private fun PreviewAccountsTabCompactModeDisabled(theme: Theme = Theme.LIGHT) {
                     to = java.time.Instant.now()
                 )
             ),
-            periodDisplayText = "Up to Now"
+            periodDisplayText = "Up to Now",
+            isCustomPeriod = false
         )
         UI(state = state)
     }
@@ -555,7 +567,8 @@ private fun PreviewAccountsTabCompactModeEnabled(theme: Theme = Theme.LIGHT) {
                     to = java.time.Instant.now()
                 )
             ),
-            periodDisplayText = "Up to Now"
+            periodDisplayText = "Up to Now",
+            isCustomPeriod = false
         )
         UI(state = state)
     }
