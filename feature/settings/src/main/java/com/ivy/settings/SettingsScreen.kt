@@ -95,6 +95,8 @@ fun BoxWithConstraintsScope.SettingsScreen() {
         hideIncome = uiState.hideIncome,
         progressState = uiState.progressState,
         treatTransfersAsIncomeExpense = uiState.treatTransfersAsIncomeExpense,
+        treatTransfersToExcludedAsExpense = uiState.treatTransfersToExcludedAsExpense,
+        treatTransfersFromExcludedAsIncome = uiState.treatTransfersFromExcludedAsIncome,
         nameLocalAccount = uiState.name,
         startDateOfMonth = uiState.startDateOfMonth.toInt(),
         languageOptionVisible = uiState.languageOptionVisible,
@@ -128,6 +130,12 @@ fun BoxWithConstraintsScope.SettingsScreen() {
         onSetTreatTransfersAsIncExp = {
             viewModel.onEvent(SettingsEvent.SetTransfersAsIncomeExpense(it))
         },
+        onSetTreatTransfersToExcludedAsExpense = {
+            viewModel.onEvent(SettingsEvent.SetTransfersToExcludedAsExpense(it))
+        },
+        onSetTreatTransfersFromExcludedAsIncome = {
+            viewModel.onEvent(SettingsEvent.SetTransfersFromExcludedAsIncome(it))
+        },
         onDeleteAllUserData = {
             viewModel.onEvent(SettingsEvent.DeleteAllUserData)
         },
@@ -157,12 +165,16 @@ private fun BoxWithConstraintsScope.UI(
     hideIncome: Boolean = false,
     progressState: Boolean = false,
     treatTransfersAsIncomeExpense: Boolean = false,
+    treatTransfersToExcludedAsExpense: Boolean = false,
+    treatTransfersFromExcludedAsIncome: Boolean = false,
     onSetName: (String) -> Unit = {},
     onBackupData: () -> Unit = {},
     onExportToCSV: () -> Unit = {},
     onSetLockApp: (Boolean) -> Unit = {},
     onSetShowNotifications: (Boolean) -> Unit = {},
     onSetTreatTransfersAsIncExp: (Boolean) -> Unit = {},
+    onSetTreatTransfersToExcludedAsExpense: (Boolean) -> Unit = {},
+    onSetTreatTransfersFromExcludedAsIncome: (Boolean) -> Unit = {},
     onSetHideCurrentBalance: (Boolean) -> Unit = {},
     onSetHideIncome: (Boolean) -> Unit = {},
     onSetStartDateOfMonth: (Int) -> Unit = {},
@@ -371,6 +383,26 @@ private fun BoxWithConstraintsScope.UI(
                 onSetLockApp = onSetTreatTransfersAsIncExp,
                 text = stringResource(R.string.transfers_as_income_expense),
                 description = stringResource(R.string.transfers_as_income_expense_description),
+                icon = R.drawable.ic_custom_transfer_m
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            AppSwitch(
+                lockApp = treatTransfersToExcludedAsExpense,
+                onSetLockApp = onSetTreatTransfersToExcludedAsExpense,
+                text = stringResource(R.string.transfers_to_excluded_as_expense),
+                description = stringResource(R.string.transfers_to_excluded_as_expense_description),
+                icon = R.drawable.ic_custom_transfer_m
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            AppSwitch(
+                lockApp = treatTransfersFromExcludedAsIncome,
+                onSetLockApp = onSetTreatTransfersFromExcludedAsIncome,
+                text = stringResource(R.string.transfers_from_excluded_as_income),
+                description = stringResource(R.string.transfers_from_excluded_as_income_description),
                 icon = R.drawable.ic_custom_transfer_m
             )
 

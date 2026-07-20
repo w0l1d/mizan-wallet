@@ -432,6 +432,10 @@
     <string name="year">year</string>
     <string name="transfers_as_income_expense"><![CDATA[Transfers as income & expenses]]></string>
     <string name="transfers_as_income_expense_description">Treat account transfers as income or expense in the Accounts screen</string>
+    <string name="transfers_to_excluded_as_expense">Transfers to excluded as expense</string>
+    <string name="transfers_to_excluded_as_expense_description">Count money transferred to excluded accounts as expenses in monthly totals</string>
+    <string name="transfers_from_excluded_as_income">Transfers from excluded as income</string>
+    <string name="transfers_from_excluded_as_income_description">Count money received from excluded accounts as income in monthly totals</string>
     <string name="home_category">Home</string>
     <string name="generating_report">Generating report…</string>
     <string name="sort_by">Sort by</string>
