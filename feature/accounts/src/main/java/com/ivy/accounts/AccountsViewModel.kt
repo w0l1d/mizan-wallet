@@ -184,25 +184,19 @@ class AccountsViewModel @Inject constructor(
     }
 
     private suspend fun onSelectNextMonth() {
-        val month = selectedPeriod.month
-        val year = selectedPeriod.year ?: timeProvider.localNow().year
-        val nextPeriod = month?.incrementMonthPeriod(ivyContext, 1L, year = year)
-        if (nextPeriod != null) {
-            selectedPeriod = nextPeriod
-            isCustomPeriod = true
-            startInternally()
-        }
+        shiftSelectedMonth(1L)
     }
 
     private suspend fun onSelectPreviousMonth() {
-        val month = selectedPeriod.month
+        shiftSelectedMonth(-1L)
+    }
+
+    private suspend fun shiftSelectedMonth(increment: Long) {
+        val month = selectedPeriod.month ?: return
         val year = selectedPeriod.year ?: timeProvider.localNow().year
-        val prevPeriod = month?.incrementMonthPeriod(ivyContext, -1L, year = year)
-        if (prevPeriod != null) {
-            selectedPeriod = prevPeriod
-            isCustomPeriod = true
-            startInternally()
-        }
+        selectedPeriod = month.incrementMonthPeriod(ivyContext, increment, year = year)
+        isCustomPeriod = true
+        startInternally()
     }
 
     private suspend fun resetPeriod() {
