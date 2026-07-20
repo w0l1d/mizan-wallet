@@ -25,4 +25,11 @@ class AccountsTabPaparazziTest(
             AccountsTabCompactUITest(theme == PaparazziTheme.Dark)
         }
     }
+
+    @Test
+    fun `snapshot accountTab custom period shows reset button`() {
+        snapshot(theme) {
+            AccountsTabCustomPeriodUITest(theme == PaparazziTheme.Dark)
+        }
+    }
 }

@@ -19,6 +19,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +44,8 @@ import com.ivy.data.model.primitive.NotBlankTrimmedString
 import com.ivy.design.l0_system.UI
 import com.ivy.design.l0_system.style
 import com.ivy.legacy.IvyWalletPreview
+import com.ivy.wallet.ui.theme.modal.ChoosePeriodModal
+import com.ivy.wallet.ui.theme.modal.ChoosePeriodModalData
 import com.ivy.legacy.data.model.AccountData
 import com.ivy.legacy.utils.clickableNoIndication
 import com.ivy.legacy.utils.horizontalSwipeListener
@@ -54,6 +60,7 @@ import com.ivy.wallet.ui.theme.Green
 import com.ivy.wallet.ui.theme.GreenLight
 import com.ivy.wallet.ui.theme.components.BalanceRow
 import com.ivy.wallet.ui.theme.components.BalanceRowMini
+import com.ivy.wallet.ui.theme.components.CircleButton
 import com.ivy.wallet.ui.theme.components.ItemIconSDefaultIcon
 import com.ivy.wallet.ui.theme.components.ReorderButton
 import com.ivy.wallet.ui.theme.components.ReorderModalSingleType
@@ -82,6 +89,7 @@ private fun BoxWithConstraintsScope.UI(
     val nav = navigation()
     val ivyContext = com.ivy.legacy.ivyWalletCtx()
     var listState = rememberLazyListState()
+    var choosePeriodModal by remember { mutableStateOf<ChoosePeriodModalData?>(null) }
     if (!state.accountsData.isEmpty()) {
         listState = rememberScrollPositionListState(
             key = "accounts_lazy_column",
@@ -135,6 +143,19 @@ private fun BoxWithConstraintsScope.UI(
 
                 Spacer(Modifier.width(24.dp))
             }
+
+            // Period selector
+            Spacer(Modifier.height(12.dp))
+            PeriodSelector(
+                periodDisplayText = state.periodDisplayText,
+                isCustomPeriod = state.isCustomPeriod,
+                onChoosePeriod = {
+                    choosePeriodModal = ChoosePeriodModalData(period = state.period)
+                },
+                onReset = { onEvent(AccountsEvent.ResetPeriod) }
+            )
+            Spacer(Modifier.height(8.dp))
+
             if (!state.hideTotalBalance) {
                 Column {
                     Spacer(Modifier.height(16.dp))
@@ -199,6 +220,51 @@ private fun BoxWithConstraintsScope.UI(
                 fontWeight = FontWeight.Bold
             )
         )
+    }
+
+    ChoosePeriodModal(
+        modal = choosePeriodModal,
+        dismiss = { choosePeriodModal = null },
+        onPeriodSelected = { newPeriod ->
+            choosePeriodModal = null
+            onEvent(AccountsEvent.SetPeriod(newPeriod))
+        }
+    )
+}
+
+@Composable
+private fun PeriodSelector(
+    periodDisplayText: String,
+    isCustomPeriod: Boolean,
+    onChoosePeriod: () -> Unit,
+    onReset: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = 24.dp)
+            .clip(UI.shapes.r2)
+            .border(1.dp, UI.colors.medium, UI.shapes.r2),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            modifier = Modifier
+                .clickable { onChoosePeriod() }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            text = periodDisplayText,
+            style = UI.typo.b2.style(
+                color = UI.colors.pureInverse,
+                fontWeight = FontWeight.ExtraBold
+            )
+        )
+
+        if (isCustomPeriod) {
+            CircleButton(
+                modifier = Modifier.padding(end = 8.dp),
+                icon = R.drawable.ic_dismiss,
+                contentDescription = stringResource(R.string.reset),
+                onClick = onReset
+            )
+        }
     }
 }
 
@@ -416,7 +482,15 @@ private fun PreviewAccountsTabCompactModeDisabled(theme: Theme = Theme.LIGHT) {
             totalBalanceWithoutExcludedText = "BGN 25.54",
             reorderVisible = false,
             compactAccountsModeEnabled = false,
-            hideTotalBalance = false
+            hideTotalBalance = false,
+            period = com.ivy.legacy.data.model.TimePeriod(
+                fromToRange = com.ivy.legacy.data.model.FromToTimeRange(
+                    from = null,
+                    to = java.time.Instant.now()
+                )
+            ),
+            periodDisplayText = "Up to Now",
+            isCustomPeriod = false
         )
         UI(state = state)
     }
@@ -503,10 +577,72 @@ private fun PreviewAccountsTabCompactModeEnabled(theme: Theme = Theme.LIGHT) {
             totalBalanceWithoutExcludedText = "BGN 25.54",
             reorderVisible = false,
             compactAccountsModeEnabled = true,
-            hideTotalBalance = false
+            hideTotalBalance = false,
+            period = com.ivy.legacy.data.model.TimePeriod(
+                fromToRange = com.ivy.legacy.data.model.FromToTimeRange(
+                    from = null,
+                    to = java.time.Instant.now()
+                )
+            ),
+            periodDisplayText = "Up to Now",
+            isCustomPeriod = false
         )
         UI(state = state)
     }
+}
+
+@Preview
+@Composable
+private fun PreviewAccountsTabCustomPeriod(theme: Theme = Theme.LIGHT) {
+    IvyWalletPreview(theme = theme) {
+        val account = Account(
+            id = AccountId(UUID.randomUUID()),
+            name = NotBlankTrimmedString.unsafe("Cash"),
+            color = ColorInt(Green.toArgb()),
+            asset = AssetCode.unsafe("USD"),
+            icon = IconAsset.unsafe("cash"),
+            includeInBalance = true,
+            orderNum = 0.0,
+        )
+        val state = AccountsState(
+            baseCurrency = "BGN",
+            accountsData = persistentListOf(
+                AccountData(
+                    account = account,
+                    balance = 820.0,
+                    balanceBaseCurrency = null,
+                    monthlyExpenses = 340.0,
+                    monthlyIncome = 400.0
+                ),
+            ),
+            totalBalanceWithExcluded = "820.00",
+            totalBalanceWithExcludedText = "BGN 820.00",
+            totalBalanceWithoutExcluded = "820.00",
+            totalBalanceWithoutExcludedText = "BGN 820.00",
+            reorderVisible = false,
+            compactAccountsModeEnabled = false,
+            hideTotalBalance = false,
+            period = com.ivy.legacy.data.model.TimePeriod(
+                fromToRange = com.ivy.legacy.data.model.FromToTimeRange(
+                    from = java.time.Instant.now(),
+                    to = java.time.Instant.now()
+                )
+            ),
+            periodDisplayText = "Sep. 1 - Sep. 30",
+            isCustomPeriod = true
+        )
+        UI(state = state)
+    }
+}
+
+/** For screen shot testing **/
+@Composable
+fun AccountsTabCustomPeriodUITest(dark: Boolean) {
+    val theme = when (dark) {
+        true -> Theme.DARK
+        false -> Theme.LIGHT
+    }
+    PreviewAccountsTabCustomPeriod(theme)
 }
 
 /** For screen shot testing **/

@@ -25,7 +25,8 @@ class AccountDataAct @Inject constructor(
     } thenMap { acc ->
         val balance = calcAccBalanceAct(
             CalcAccBalanceAct.Input(
-                account = acc
+                account = acc,
+                range = balanceRange
             )
         ).balance
 
@@ -46,7 +47,7 @@ class AccountDataAct @Inject constructor(
         val incomeExpensePair = calcAccIncomeExpenseAct(
             CalcAccIncomeExpenseAct.Input(
                 account = acc,
-                range = range,
+                range = incomeExpenseRange,
                 includeTransfersInCalc = includeTransfersInCalc
             )
         ).incomeExpensePair
@@ -65,7 +66,10 @@ class AccountDataAct @Inject constructor(
     data class Input(
         val accounts: ImmutableList<com.ivy.data.model.Account>,
         val baseCurrency: String,
-        val range: ClosedTimeRange,
+        /** Range for each account's balance. `null` = all-time balance up to now. */
+        val balanceRange: ClosedTimeRange?,
+        /** Range for each account's income/expense totals. */
+        val incomeExpenseRange: ClosedTimeRange,
         val includeTransfersInCalc: Boolean = false
     )
 }
