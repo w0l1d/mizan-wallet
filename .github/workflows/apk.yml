@@ -35,20 +35,21 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Bump version-code in libs.versions.toml
+      - name: Bump version in libs.versions.toml
         if: steps.check_tag.outputs.skip == 'false'
         id: get_version
         run: |
           VERSION_FILE="gradle/libs.versions.toml"
-          VERSION_NAME=$(grep 'version-name =' $VERSION_FILE | awk -F'=' '{print $2}' | tr -d ' "')
+          CURRENT_DATE=$(date +'%Y.%m.%d')
           VERSION_CODE=$(grep 'version-code =' $VERSION_FILE | awk -F'=' '{print $2}' | tr -d ' "')
           NEW_VERSION_CODE=$((VERSION_CODE + 1))
 
+          sed -i "s/version-name = \".*\"/version-name = \"$CURRENT_DATE\"/" $VERSION_FILE
           sed -i "s/version-code = \".*\"/version-code = \"$NEW_VERSION_CODE\"/" $VERSION_FILE
 
-          TAG_NAME="v${VERSION_NAME}-${NEW_VERSION_CODE}"
+          TAG_NAME="v${CURRENT_DATE}-${NEW_VERSION_CODE}"
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_name=$CURRENT_DATE" >> $GITHUB_OUTPUT
           echo "version_code=$NEW_VERSION_CODE" >> $GITHUB_OUTPUT
 
       - name: Commit version bump and push tag
