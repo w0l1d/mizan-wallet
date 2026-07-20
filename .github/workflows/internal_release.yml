@@ -1,28 +1,15 @@
 name: Internal Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   google_play_release:
-    if: |
-      contains(github.event.head_commit.message, 'Automatic release')
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout GIT
         uses: actions/checkout@v4
-
-      - name: Verify Commit Author
-        id: verify_author
-        run: |
-          AUTHOR=$(git log -1 --pretty=format:'%an')
-          if [ "$AUTHOR" != "github-actions[bot]" ]; then
-            echo "Commit not authored by github-actions[bot], exiting."
-            exit 1
-          fi
 
       - name: Setup Java SDK
         uses: actions/setup-java@v4
@@ -85,8 +72,6 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
 
   github_release:
-    if: |
-      contains(github.event.head_commit.message, 'Automatic release')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -97,14 +82,8 @@ jobs:
         with:
           fetch-depth: 0 # Fetch all history for all branches and tags
 
-      - name: Verify Commit Author
-        id: verify_author
-        run: |
-          AUTHOR=$(git log -1 --pretty=format:'%an')
-          if [ "$AUTHOR" != "github-actions[bot]" ]; then
-            echo "Commit not authored by github-actions[bot], exiting."
-            exit 1
-          fi
+      - name: Fetch tags
+        run: git fetch --tags
 
       - name: Setup Java SDK
         uses: actions/setup-java@v4
@@ -130,12 +109,22 @@ jobs:
           echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
           echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
 
-      - name: Create and push tag
+      - name: Reuse or create release tag
         run: |
-          TAG_NAME="v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}"
-          git tag $TAG_NAME
-          git push origin $TAG_NAME
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+          EXPECTED_TAG="v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}"
+          EXISTING_TAG=$(git tag --points-at HEAD)
+
+          if [ -n "$EXISTING_TAG" ]; then
+            echo "Reusing existing tag from apk.yml auto_tag: $EXISTING_TAG"
+            echo "TAG_NAME=$EXISTING_TAG" >> $GITHUB_ENV
+          else
+            echo "No tag on HEAD yet, creating $EXPECTED_TAG"
+            git config --global user.email "actions@github.com"
+            git config --global user.name "GitHub Actions"
+            git tag $EXPECTED_TAG
+            git push origin $EXPECTED_TAG
+            echo "TAG_NAME=$EXPECTED_TAG" >> $GITHUB_ENV
+          fi
 
       - name: Build Demo APK
         run: ./gradlew assembleDemo
