@@ -62,13 +62,7 @@ class AccountsViewModel @Inject constructor(
     private var totalBalanceWithoutExcluded by mutableStateOf("")
     private var totalBalanceWithoutExcludedText by mutableStateOf("")
     private var reorderVisible by mutableStateOf(false)
-    private val initialPeriod = TimePeriod(
-        fromToRange = FromToTimeRange(
-            from = null,
-            to = timeProvider.utcNow()
-        )
-    )
-    private var selectedPeriod by mutableStateOf(initialPeriod)
+    private var selectedPeriod by mutableStateOf(defaultPeriod())
     private var periodDisplayText by mutableStateOf("")
     private var isCustomPeriod by mutableStateOf(false)
 
@@ -212,10 +206,17 @@ class AccountsViewModel @Inject constructor(
     }
 
     private suspend fun resetPeriod() {
-        selectedPeriod = initialPeriod
+        selectedPeriod = defaultPeriod()
         isCustomPeriod = false
         startInternally()
     }
+
+    private fun defaultPeriod(): TimePeriod = TimePeriod(
+        fromToRange = FromToTimeRange(
+            from = null,
+            to = timeProvider.utcNow()
+        )
+    )
 
     private suspend fun reorder(newOrder: List<AccountData>) {
         ioThread {
