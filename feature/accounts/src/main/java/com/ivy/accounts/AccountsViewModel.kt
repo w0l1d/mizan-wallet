@@ -22,6 +22,7 @@ import com.ivy.legacy.data.model.FromToTimeRange
 import com.ivy.legacy.data.model.TimePeriod
 import com.ivy.legacy.data.model.toCloseTimeRange
 import com.ivy.legacy.utils.format
+import com.ivy.legacy.utils.formatDateOnlyWithYear
 import com.ivy.legacy.utils.ioThread
 import com.ivy.ui.ComposeViewModel
 import com.ivy.ui.R
@@ -285,10 +286,15 @@ class AccountsViewModel @Inject constructor(
             }
         } else if (period.fromToRange != null) {
             val range = period.fromToRange!!
-            if (range.from == null) {
-                "Up to Now"
-            } else {
-                "Custom Range"
+            with(timeConverter) {
+                val fromText = range.from?.toLocalDate()?.formatDateOnlyWithYear()
+                val toText = range.to?.toLocalDate()?.formatDateOnlyWithYear()
+                when {
+                    fromText != null && toText != null -> "$fromText - $toText"
+                    fromText != null -> "From $fromText"
+                    toText != null -> "Up to $toText"
+                    else -> "All Time"
+                }
             }
         } else if (period.lastNRange != null) {
             val lastN = period.lastNRange!!
