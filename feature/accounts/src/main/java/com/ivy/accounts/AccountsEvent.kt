@@ -9,4 +9,5 @@ sealed interface AccountsEvent {
     data class SetPeriod(val period: TimePeriod) : AccountsEvent
     data object SelectNextMonth : AccountsEvent
     data object SelectPreviousMonth : AccountsEvent
+    data object ResetPeriod : AccountsEvent
 }

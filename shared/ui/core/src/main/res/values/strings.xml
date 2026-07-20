@@ -5,6 +5,7 @@
     <string name="month_income">INCOME THIS MONTH</string>
     <string name="month_expenses">EXPENSES THIS MONTH</string>
     <string name="excluded">(excluded)</string>
+    <string name="reset">Reset</string>
     <string name="income_uppercase">INCOME</string>
     <string name="expenses_uppercase">EXPENSES</string>
     <string name="app_locked">APP LOCKED</string>
