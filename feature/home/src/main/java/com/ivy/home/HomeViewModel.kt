@@ -328,10 +328,12 @@ class HomeViewModel @Inject constructor(
                 accounts = accounts,
                 range = timeRange,
                 transfersToExcludedAsExpense = sharedPrefs.getBoolean(
-                    SharedPrefs.TRANSFERS_TO_EXCLUDED_AS_EXPENSE, false
+                    SharedPrefs.TRANSFERS_TO_EXCLUDED_AS_EXPENSE,
+                    false
                 ),
                 transfersFromExcludedAsIncome = sharedPrefs.getBoolean(
-                    SharedPrefs.TRANSFERS_FROM_EXCLUDED_AS_INCOME, false
+                    SharedPrefs.TRANSFERS_FROM_EXCLUDED_AS_INCOME,
+                    false
                 ),
             )
         )

@@ -18,7 +18,6 @@ import com.ivy.data.repository.AccountRepository
 import com.ivy.domain.features.Features
 import com.ivy.legacy.IvyWalletCtx
 import com.ivy.legacy.data.model.AccountData
-import com.ivy.legacy.data.model.FromToTimeRange
 import com.ivy.legacy.data.model.TimePeriod
 import com.ivy.legacy.data.model.toCloseTimeRange
 import com.ivy.legacy.utils.format
@@ -205,11 +204,8 @@ class AccountsViewModel @Inject constructor(
         startInternally()
     }
 
-    private fun defaultPeriod(): TimePeriod = TimePeriod(
-        fromToRange = FromToTimeRange(
-            from = null,
-            to = timeProvider.utcNow()
-        )
+    private fun defaultPeriod(): TimePeriod = TimePeriod.currentMonth(
+        startDayOfMonth = ivyContext.startDayOfMonth
     )
 
     private suspend fun reorder(newOrder: List<AccountData>) {
@@ -232,6 +228,7 @@ class AccountsViewModel @Inject constructor(
         val period = selectedPeriod
         periodDisplayText = buildPeriodDisplayText(period)
         val range = period.toRange(ivyContext.startDayOfMonth, timeConverter, timeProvider)
+            .toCloseTimeRange()
 
         val baseCurrencyCode = baseCurrencyAct(Unit)
         val accounts = accountRepository.findAll().toImmutableList()
@@ -239,10 +236,16 @@ class AccountsViewModel @Inject constructor(
         val includeTransfersInCalc =
             sharedPrefs.getBoolean(SharedPrefs.TRANSFERS_AS_INCOME_EXPENSE, false)
 
+        // Default: all-time balance with income/expense for the selected period (the
+        // behaviour before the date filter). Once the user picks a period, balance and
+        // income/expense share that range.
+        val balanceRange = range.takeIf { isCustomPeriod }
+
         val accountsDataList = accountDataAct(
             AccountDataAct.Input(
                 accounts = accounts,
-                range = range.toCloseTimeRange(),
+                balanceRange = balanceRange,
+                incomeExpenseRange = range,
                 baseCurrency = baseCurrencyCode,
                 includeTransfersInCalc = includeTransfersInCalc
             )

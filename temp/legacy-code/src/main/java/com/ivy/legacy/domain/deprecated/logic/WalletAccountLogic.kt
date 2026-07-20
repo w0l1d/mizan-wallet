@@ -93,7 +93,8 @@ class WalletAccountLogic @Inject constructor(
         val accountsDataList = accountDataAct(
             AccountDataAct.Input(
                 accounts = accountList.toImmutableList(),
-                range = ClosedTimeRange.allTimeIvy(timeProvider),
+                balanceRange = ClosedTimeRange.allTimeIvy(timeProvider),
+                incomeExpenseRange = ClosedTimeRange.allTimeIvy(timeProvider),
                 baseCurrency = currencyRepository.getBaseCurrency().code,
                 includeTransfersInCalc = includeTransfersInCalc
             )
