@@ -128,21 +128,66 @@ jobs:
           name: Mizan-Demo.apk
           path: app/build/outputs/apk/demo/app-demo.apk
 
+      - name: Gather release context
+        id: context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT_SUBJECT=$(git log -1 --pretty=%s)
+          COMMIT_AUTHOR=$(git log -1 --pretty=%an)
+          echo "commit_subject=$COMMIT_SUBJECT" >> "$GITHUB_OUTPUT"
+          echo "commit_author=$COMMIT_AUTHOR" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "commit_body<<BODY_EOF"
+            git log -1 --pretty=%b
+            echo "BODY_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          # Associated-PRs endpoint: the PR(s) whose merge/squash produced this commit
+          PR_JSON=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" 2>/dev/null || echo '[]')
+          echo "pr_number=$(echo "$PR_JSON" | jq -r '.[0].number // empty')" >> "$GITHUB_OUTPUT"
+          echo "pr_title=$(echo "$PR_JSON" | jq -r '.[0].title // empty')" >> "$GITHUB_OUTPUT"
+          echo "pr_url=$(echo "$PR_JSON" | jq -r '.[0].html_url // empty')" >> "$GITHUB_OUTPUT"
+          echo "pr_branch=$(echo "$PR_JSON" | jq -r '.[0].head.ref // empty')" >> "$GITHUB_OUTPUT"
+
       - name: Upload APK in Telegram Group
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        env:
+          COMMIT_BODY: ${{ steps.context.outputs.commit_body }}
         run: |
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c 1-7)
           COMMIT_LINK="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
-          COMMIT_MESSAGE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}" | jq -r .commit.message | cut -c 1-100)
           APK_SHA256=$(sha256sum app/build/outputs/apk/demo/app-demo.apk | awk '{print $1}')
 
           TAG_INFO=""
           TAG_NAME=$(git tag --points-at HEAD | head -1)
           if [ -n "$TAG_NAME" ]; then
-            TAG_INFO=$'\n\n🏷️ Tag: '"$TAG_NAME"
+            RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME}"
+            TAG_INFO=$'\n📋 Release: '"$RELEASE_URL"
           fi
 
-          CAPTION=$'📦 Mizan Wallet Demo APK\n\n'"$COMMIT_MESSAGE"$'\n\n🔖 Commit: '"$SHORT_SHA"$'\n🔗 '"$COMMIT_LINK"$TAG_INFO$'\n🔐 SHA-256: '"$APK_SHA256"
+          COMMIT_SUBJECT="${{ steps.context.outputs.commit_subject }}"
+          COMMIT_AUTHOR="${{ steps.context.outputs.commit_author }}"
+          PR_NUMBER="${{ steps.context.outputs.pr_number }}"
+          PR_TITLE="${{ steps.context.outputs.pr_title }}"
+          PR_URL="${{ steps.context.outputs.pr_url }}"
+          PR_BRANCH="${{ steps.context.outputs.pr_branch }}"
+
+          # Truncate body to 400 chars to stay under Telegram's 1024-char caption limit
+          BODY=$(printf '%s' "$COMMIT_BODY" | head -c 400)
+          [ "${#COMMIT_BODY}" -gt 400 ] && BODY="${BODY}…"
+
+          CAPTION=$'📦 Mizan Wallet Demo APK\n\n📝 '"$COMMIT_SUBJECT"
+          [ -n "$BODY" ] && CAPTION+=$'\n\n'"$BODY"
+          if [ -n "$PR_NUMBER" ]; then
+            CAPTION+=$'\n\n🔀 PR #'"$PR_NUMBER"$': '"$PR_TITLE"
+            [ -n "$PR_BRANCH" ] && CAPTION+=$'\n🌿 Branch: '"$PR_BRANCH"
+            [ -n "$PR_URL" ] && CAPTION+=$'\n🔗 '"$PR_URL"
+          fi
+          CAPTION+=$'\n\n🔖 Commit: '"$SHORT_SHA"$' by '"$COMMIT_AUTHOR"
+          CAPTION+=$'\n🔗 '"$COMMIT_LINK"$TAG_INFO
+          CAPTION+=$'\n🔐 SHA-256: '"$APK_SHA256"
 
           curl -F "chat_id=-1003694191301" \
                -F "message_thread_id=14" \
