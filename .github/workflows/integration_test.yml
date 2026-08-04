@@ -78,10 +78,8 @@ jobs:
             # runs survive. The debug keystore is regenerated on every run, so those
             # leftovers fail to upgrade with INSTALL_FAILED_UPDATE_INCOMPATIBLE.
             # Drop them before installing the freshly signed APKs.
-            adb shell pm list packages \
-              | tr -d '\r' \
-              | sed 's/^package://' \
-              | grep '^com\.ivy\.' \
-              | xargs -r -n1 adb uninstall || true
+            # Keep this a single line: the emulator-runner feeds the script to sh
+            # line by line, so backslash continuations break with "| unexpected".
+            adb wait-for-device; adb shell pm list packages | tr -d '\r' | sed 's/^package://' | grep '^com\.ivy\.' | xargs -r -n1 adb uninstall || true
             ./gradlew :shared:data:core:connectedDebugAndroidTest
             ./gradlew :shared:domain:connectedDebugAndroidTest
