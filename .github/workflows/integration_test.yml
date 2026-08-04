@@ -71,15 +71,18 @@ jobs:
           cores: 2
           force-avd-creation: false
           emulator-boot-timeout: 600
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          # -wipe-data: the AVD cache restores the userdata image, so apps installed
+          # by earlier runs persist. The debug keystore is NOT cached, so it is
+          # regenerated every run and those leftovers cannot be upgraded --
+          # INSTALL_FAILED_UPDATE_INCOMPATIBLE. Booting with a clean userdata image
+          # removes the conflict at the source, and also drops stale app databases
+          # that could otherwise leak between runs of the Room/DAO suites.
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -wipe-data -noaudio -no-boot-anim
           disable-animations: true
           script: |
-            # The cached AVD keeps its userdata image, so app installs from earlier
-            # runs survive. The debug keystore is regenerated on every run, so those
-            # leftovers fail to upgrade with INSTALL_FAILED_UPDATE_INCOMPATIBLE.
-            # Drop them before installing the freshly signed APKs.
-            # Keep this a single line: the emulator-runner feeds the script to sh
-            # line by line, so backslash continuations break with "| unexpected".
-            adb wait-for-device; adb shell pm list packages | tr -d '\r' | sed 's/^package://' | grep '^com\.ivy\.' | xargs -r -n1 adb uninstall || true
+            # Diagnostic only: proves the device starts with no com.ivy.* packages.
+            # Keep every command on ONE line -- the emulator-runner feeds this script
+            # to sh line by line, so backslash continuations break with "| unexpected".
+            adb wait-for-device; adb shell pm list packages | grep com.ivy || echo "no com.ivy.* packages present (expected)"
             ./gradlew :shared:data:core:connectedDebugAndroidTest
             ./gradlew :shared:domain:connectedDebugAndroidTest
