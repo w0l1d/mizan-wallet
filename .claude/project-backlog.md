@@ -14,8 +14,10 @@
 | MZ-002 | Accounts screen date/period filter | ✅ merged to develop | `feat/accounts-date-filter` | — | [note](notes/mz-002-accounts-filter.md) |
 | MZ-003 | Split balance / income-expense ranges | ✅ on develop | — | — | [note](notes/mz-003-split-ranges.md) |
 | MZ-004 | CI: auto-bump version, auto-tag, APK in Telegram | ✅ on develop | — | — | [note](notes/mz-004-ci-improvements.md) |
-| MZ-005 | Integration PR (`develop → main`) | ✅ open, CI running | — | [#8](https://github.com/w0l1d/mizan-wallet/pull/8) | `pr-description-check` fixed (`Closes N/A`) and reopened |
+| MZ-005 | Integration PR (`develop → main`) | 🚧 open, 2 red checks fixed | — | [#8](https://github.com/w0l1d/mizan-wallet/pull/8) | `pr-description-check` ✅; `test` + `integration_test` fixed by MZ-007/008 |
 | MZ-006 | Enhanced Telegram APK messages (PR context + commit details) | ✅ on develop | — | — | [note](notes/mz-ci-01-telegram-enhance.md); commit `cc6de009` |
+| MZ-007 | Fix `integration_test` `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | ✅ on develop | — | — | Cached AVD userdata + regenerated debug keystore → uninstall `com.ivy.*` before install |
+| MZ-008 | Fix flaky property tests (`UncompletedCoroutinesError`) | ✅ on develop | — | — | `runTest` 60s default too low on loaded runners → `PropertyTestTimeout = 5.minutes` |
 
 ---
 
