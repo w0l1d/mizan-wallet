@@ -14,6 +14,7 @@ import com.ivy.data.model.primitive.AssetCode
 import com.ivy.data.model.primitive.NonNegativeInt
 import com.ivy.data.model.testing.ModelFixtures
 import com.ivy.data.model.testing.transaction
+import com.ivy.domain.PropertyTestTimeout
 import com.ivy.domain.model.StatSummary
 import com.ivy.domain.model.shouldBeApprox
 import com.ivy.domain.nonEmptyExpenses
@@ -47,7 +48,7 @@ class AccountStatsUseCasePropertyTest {
     }
 
     @Test
-    fun `property - ignores irrelevant transactions`() = runTest {
+    fun `property - ignores irrelevant transactions`() = runTest(timeout = PropertyTestTimeout) {
         // given
         val account = ModelFixtures.AccountId
         val arbIrrelevantTransaction = Arb.transaction().filter { trn ->
@@ -95,7 +96,7 @@ class AccountStatsUseCasePropertyTest {
         arbTrns: (AccountId, AssetCode) -> Arb<NonEmptyList<T>>,
         extractValue: (T) -> PositiveValue,
         expectedResultSelector: (AccountStats) -> StatSummary,
-    ) = runTest {
+    ) = runTest(timeout = PropertyTestTimeout) {
         // given
         val account = ModelFixtures.AccountId
         val arbEurTrns = arbTrns(account, AssetCode.EUR)

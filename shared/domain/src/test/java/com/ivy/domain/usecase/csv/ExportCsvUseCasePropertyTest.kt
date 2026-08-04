@@ -13,6 +13,7 @@ import com.ivy.data.model.testing.transaction
 import com.ivy.data.repository.AccountRepository
 import com.ivy.data.repository.CategoryRepository
 import com.ivy.data.repository.TransactionRepository
+import com.ivy.domain.PropertyTestTimeout
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.arbitrary.int
@@ -48,7 +49,7 @@ class ExportCsvUseCasePropertyTest {
     }
 
     @Test
-    fun `property - num of row and columns matches the format`() = runTest {
+    fun `property - num of row and columns matches the format`() = runTest(timeout = PropertyTestTimeout) {
         checkAll(Arb.list(Arb.transaction())) { trns ->
             // given
             val accounts = trns.flatMap {
