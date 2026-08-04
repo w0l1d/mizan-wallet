@@ -42,6 +42,8 @@
 | ID | Task | Priority | Notes |
 |----|------|----------|-------|
 | MZ-CI-01 | ~~Enhance Telegram APK message with PR context, commit info, SHA-256~~ → **DONE** (`cc6de009`) | ✅ done | [note](notes/mz-ci-01-telegram-enhance.md) |
+| MZ-CI-06 | Ship a Telegram APK containing the split-range fix (`41a8367f`) | 🔴 high | Newest Telegram APK = dispatch run `29753745987` on develop @ `7f0a9bdf` — the commit *before* the fix. `apk.yml`'s Telegram step is gated to `main`/tags/`workflow_dispatch`, so PR #8 builds never post. Dispatch apk.yml on `develop`. |
+| MZ-CI-07 | Consider posting PR-build APKs to Telegram (or a distinct thread) so PRs are testable without a manual dispatch | 🟡 medium | Would remove the "latest APK lags develop" trap that caused MZ-CI-06 |
 | MZ-CI-02 | Adopt `concurrency` groups in release workflows to serialize runs (latch pattern) | 🟢 low | |
 | MZ-CI-03 | Investigate per-ABI APK splitting if fat APK approaches Telegram's 50 MB limit | 🟢 low | |
 | MZ-CI-04 | Switch tag format to `vMAJOR.MINOR.PATCH-YYYY.MM.DD.BUILD` (latch pattern) | 🟢 low | Current format: `vYYYY.MM.DD-CODE` |
