@@ -19,7 +19,7 @@ jobs:
       tag_name: ${{ steps.get_version.outputs.tag_name }}
     steps:
       - name: Checkout GIT
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout GIT
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.auto_tag.outputs.tag_name != '' && needs.auto_tag.outputs.tag_name || github.ref }}
 
@@ -79,13 +79,13 @@ jobs:
         run: git fetch --tags
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'adopt'
           java-version: '18'
 
       - name: Gradle cache
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Inject google-services.json
         run: |
@@ -123,7 +123,7 @@ jobs:
           echo "APK version validated: $APK_VERSION_NAME ($APK_VERSION_CODE)"
 
       - name: Upload APK to Github Actions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Mizan-Demo.apk
           path: app/build/outputs/apk/demo/app-demo.apk
@@ -133,6 +133,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          VERSION_NAME=$(grep 'version-name =' gradle/libs.versions.toml | awk -F'=' '{print $2}' | tr -d ' "')
+          VERSION_CODE=$(grep 'version-code =' gradle/libs.versions.toml | awk -F'=' '{print $2}' | tr -d ' "')
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
           COMMIT_SUBJECT=$(git log -1 --pretty=%s)
           COMMIT_AUTHOR=$(git log -1 --pretty=%an)
           echo "commit_subject=$COMMIT_SUBJECT" >> "$GITHUB_OUTPUT"
@@ -178,7 +183,9 @@ jobs:
           BODY=$(printf '%s' "$COMMIT_BODY" | head -c 400)
           [ "${#COMMIT_BODY}" -gt 400 ] && BODY="${BODY}…"
 
-          CAPTION=$'📦 Mizan Wallet Demo APK\n\n📝 '"$COMMIT_SUBJECT"
+          VERSION_LABEL="v${{ steps.context.outputs.version_name }} (${{ steps.context.outputs.version_code }})"
+
+          CAPTION=$'📦 Mizan Wallet Demo APK — '"$VERSION_LABEL"$'\n\n📝 '"$COMMIT_SUBJECT"
           [ -n "$BODY" ] && CAPTION+=$'\n\n'"$BODY"
           if [ -n "$PR_NUMBER" ]; then
             CAPTION+=$'\n\n🔀 PR #'"$PR_NUMBER"$': '"$PR_TITLE"
@@ -187,7 +194,7 @@ jobs:
           fi
           CAPTION+=$'\n\n🔖 Commit: '"$SHORT_SHA"$' by '"$COMMIT_AUTHOR"
           CAPTION+=$'\n🔗 '"$COMMIT_LINK"$TAG_INFO
-          CAPTION+=$'\n🔐 SHA-256: '"$APK_SHA256"
+          CAPTION+=$'\n🔐 SHA-256: '"$APK_SHA256"$'\n\n🚢 Please test before production.'
 
           curl -F "chat_id=-1003694191301" \
                -F "message_thread_id=14" \

@@ -11,16 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout GIT
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Java SDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'adopt'
           java-version: '18'
 
       - name: Gradle cache
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Inject google-services.json
         run: |
@@ -36,16 +36,16 @@ jobs:
 #    runs-on: ubuntu-latest
 #    steps:
 #      - name: Checkout GIT
-#        uses: actions/checkout@v4
+#        uses: actions/checkout@v7
 #
 #      - name: Setup Java SDK
-#        uses: actions/setup-java@v4
+#        uses: actions/setup-java@v5
 #        with:
 #          distribution: 'adopt'
 #          java-version: '18'
 #
 #      - name: Enable Gradle Wrapper caching (optimization)
-#        uses: actions/cache@v4
+#        uses: actions/cache@v6
 #        with:
 #          path: |
 #            ~/.gradle/caches
@@ -58,7 +58,7 @@ jobs:
 #        run: ./gradlew koverHtmlReport
 #
 #      - name: Upload Code Coverage report
-#        uses: actions/upload-artifact@v4
+#        uses: actions/upload-artifact@v7
 #        with:
 #          name: code-coverage-report
 #          path: app/build/artifacts/reports/kover/coverageResults/*
