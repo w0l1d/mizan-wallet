@@ -9,10 +9,10 @@ jobs:
 
     steps:
       - name: Checkout GIT
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Java SDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'adopt'
           java-version: '18'
@@ -27,7 +27,7 @@ jobs:
       #----------------------------------------------------
 
       - name: Gradle cache
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       # Decode Secrets for production build
       - name: Create JKS for prod signing
@@ -59,7 +59,7 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
 
       - name: Upload App Bundle to GitHub
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: app-release.aab
           path: app/build/outputs/bundle/release/app-release.aab
@@ -78,7 +78,7 @@ jobs:
 
     steps:
       - name: Checkout GIT
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0 # Fetch all history for all branches and tags
 
@@ -86,13 +86,13 @@ jobs:
         run: git fetch --tags
 
       - name: Setup Java SDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'adopt'
           java-version: '18'
 
       - name: Enable Gradle Wrapper caching (optimization)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
@@ -130,7 +130,7 @@ jobs:
         run: ./gradlew assembleDemo
 
       - name: Upload APK to Github Actions
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Mizan-Demo.apk
           path: app/build/outputs/apk/demo/app-demo.apk
@@ -138,7 +138,7 @@ jobs:
       - name: Prepare changelog for GitHub Release
         id: changelog
         continue-on-error: true
-        uses: Bullrich/generate-release-changelog@master
+        uses: Bullrich/generate-release-changelog@v2.0.2
         env:
           REPO: ${{ github.repository }}
 

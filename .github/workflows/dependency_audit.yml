@@ -12,16 +12,16 @@ jobs:
 
     steps:
       - name: Checkout GIT
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'adopt'
           java-version: '18'
 
       - name: Gradle cache
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Inject google-services.json
         run: |
@@ -104,7 +104,7 @@ jobs:
           echo "has_issues=$HAS_ISSUES" >> $GITHUB_OUTPUT
 
       - name: Upload dependency report artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dependency-audit-report
           path: |
