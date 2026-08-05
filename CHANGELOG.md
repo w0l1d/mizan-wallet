@@ -12,10 +12,10 @@ All notable changes to this project will be documented in this file.
 - Both settings available in Settings → App Settings section with individual toggles
 
 ### Added (feat/accounts-date-filter)
-- **Period filter on Accounts screen**: Added a date/period selector to the Accounts tab
-- Filter per-account balance and income/expense by any month or custom date range
-- Period-filtered balance shows account value up to end of selected period
-- Defaults to current month, preserving existing behavior
+- **Period filter on Accounts screen**: date/period selector on the Accounts tab with month navigation, custom range, and a reset button
+- Default view shows each account's all-time balance with income/expense for the current month (matching the previous behaviour)
+- Selecting a period filters both the balance and the income/expense totals to that range
+- Reset returns to the default view
 
 ---
 
