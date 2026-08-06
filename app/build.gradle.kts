@@ -19,8 +19,34 @@ android {
         applicationId = "dev.w0l1d.mizan"
         minSdk = libs.versions.min.sdk.get().toInt()
         targetSdk = libs.versions.compile.sdk.get().toInt()
-        versionName = libs.versions.version.name.get()
-        versionCode = libs.versions.version.code.get().toInt()
+
+        val baseVersionName = libs.versions.version.name.get()
+        val baseVersionCode = libs.versions.version.code.get().toInt()
+
+        // Append -dev-<short-sha> for non-tagged builds so every develop APK
+        // carries a unique, traceable version string.
+        val (versionName, versionCode) = try {
+            val shortSha = providers.exec {
+                commandLine("git", "rev-parse", "--short", "HEAD")
+            }.standardOutput.asText.get().trim()
+
+            // git tag --points-at HEAD always succeeds (exit 0), empty output = no tag
+            val tagPointsAtHead = providers.exec {
+                commandLine("git", "tag", "--points-at", "HEAD")
+            }.standardOutput.asText.get().trim()
+
+            if (tagPointsAtHead.isNotEmpty()) {
+                baseVersionName to baseVersionCode
+            } else {
+                "$baseVersionName-dev-$shortSha" to baseVersionCode
+            }
+        } catch (_: Exception) {
+            // Fallback for environments without git
+            baseVersionName to baseVersionCode
+        }
+
+        this.versionName = versionName
+        this.versionCode = versionCode
     }
 
     androidResources {
