@@ -226,7 +226,7 @@ class AccountsViewModel @Inject constructor(
 
     private suspend fun startInternally() {
         val period = selectedPeriod
-        periodDisplayText = buildPeriodDisplayText(period)
+        periodDisplayText = buildPeriodDisplayText(period, isCustomPeriod)
         val range = period.toRange(ivyContext.startDayOfMonth, timeConverter, timeProvider)
             .toCloseTimeRange()
 
@@ -254,13 +254,15 @@ class AccountsViewModel @Inject constructor(
         val totalBalanceWithExcludedAccounts = calcWalletBalanceAct(
             CalcWalletBalanceAct.Input(
                 baseCurrency = baseCurrencyCode,
+                range = balanceRange,
                 withExcluded = true
             )
         ).toDouble()
 
         val totalBalanceWithoutExcludedAccounts = calcWalletBalanceAct(
             CalcWalletBalanceAct.Input(
-                baseCurrency = baseCurrencyCode
+                baseCurrency = baseCurrencyCode,
+                range = balanceRange
             )
         ).toDouble()
 
@@ -288,7 +290,12 @@ class AccountsViewModel @Inject constructor(
         reorderVisible = visible
     }
 
-    private fun buildPeriodDisplayText(period: TimePeriod): String {
+    private fun buildPeriodDisplayText(period: TimePeriod, isCustomPeriod: Boolean): String {
+        // Default (no period picked): balance is all-time, so the label must say so —
+        // showing e.g. "August" here would look identical to explicitly picking August,
+        // even though the underlying balance range is completely different.
+        if (!isCustomPeriod) return "Not Set"
+
         val month = period.month
         return if (month != null) {
             val monthName = month.name
