@@ -5,6 +5,13 @@ on:
     branches:
       - main
   pull_request:
+  # Manual trigger exists so the Gradle cache can be seeded on main without
+  # waiting for a merge -- see cache-read-only below.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   integration_test:
@@ -21,6 +28,13 @@ jobs:
 
       - name: Gradle cache
         uses: gradle/actions/setup-gradle@v6
+        with:
+          # Only main pushes and manual dispatches write the Gradle user-home
+          # cache; PR runs read it. Previously nothing ever wrote it (setup-gradle
+          # is read-only off the default branch and main is pushed only on merge),
+          # so every job started with an empty ~/.gradle: it re-downloaded the
+          # Gradle distribution and recompiled all 45 modules from scratch.
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Enable KVM (emulator optimization)
         run: |
@@ -35,7 +49,8 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-34-default
+            ~/.android/debug.keystore
+          key: avd-34-keystore-v1
 
       - name: create AVD and generate snapshot for caching
         if: steps.avd-cache.outputs.cache-hit != 'true'
@@ -71,18 +86,26 @@ jobs:
           cores: 2
           force-avd-creation: false
           emulator-boot-timeout: 600
-          # -wipe-data: the AVD cache restores the userdata image, so apps installed
-          # by earlier runs persist. The debug keystore is NOT cached, so it is
-          # regenerated every run and those leftovers cannot be upgraded --
-          # INSTALL_FAILED_UPDATE_INCOMPATIBLE. Booting with a clean userdata image
-          # removes the conflict at the source, and also drops stale app databases
-          # that could otherwise leak between runs of the Room/DAO suites.
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -wipe-data -noaudio -no-boot-anim
+          # The AVD cache restores a userdata image that still holds the app
+          # packages installed by earlier runs. Those were signed with that run's
+          # ~/.android/debug.keystore, so the keystore has to be cached too --
+          # otherwise Gradle regenerates it, the signatures no longer match and the
+          # reinstall fails with INSTALL_FAILED_UPDATE_INCOMPATIBLE.
+          #
+          # -no-snapshot-save (NOT -no-snapshot): loads the boot snapshot written by
+          # the create-AVD step and just doesn't write it back. -no-snapshot skips
+          # the load as well, which forces a cold boot and blew past
+          # emulator-boot-timeout on cache-hit runs.
+          #
+          # Keep these options in sync with the create-AVD step above: a snapshot is
+          # only loadable by an emulator started with a matching hardware config.
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: |
-            # Diagnostic only: proves the device starts with no com.ivy.* packages.
+            # Diagnostic only: shows which com.ivy.* leftovers the cached userdata
+            # image carries, so a signature mismatch is obvious in the log.
             # Keep every command on ONE line -- the emulator-runner feeds this script
             # to sh line by line, so backslash continuations break with "| unexpected".
-            adb wait-for-device; adb shell pm list packages | grep com.ivy || echo "no com.ivy.* packages present (expected)"
+            adb wait-for-device; adb shell pm list packages | grep com.ivy || echo "no com.ivy.* packages present"
             ./gradlew :shared:data:core:connectedDebugAndroidTest
             ./gradlew :shared:domain:connectedDebugAndroidTest
