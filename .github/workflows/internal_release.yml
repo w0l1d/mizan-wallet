@@ -3,6 +3,12 @@ name: Internal Release
 on:
   workflow_dispatch:
 
+# No cancel-in-progress: these jobs upload to Google Play and create GitHub
+# releases, so a second dispatch must queue behind the first, never kill it.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   google_play_release:
     runs-on: ubuntu-latest
@@ -28,6 +34,11 @@ jobs:
 
       - name: Gradle cache
         uses: gradle/actions/setup-gradle@v6
+        with:
+          # Dispatch-only workflow, so it always writes. setup-gradle defaults to
+          # read-only whenever the ref is not the default branch, which would make
+          # a release dispatched from develop silently skip seeding the cache.
+          cache-read-only: false
 
       # Decode Secrets for production build
       - name: Create JKS for prod signing
@@ -91,15 +102,14 @@ jobs:
           distribution: 'adopt'
           java-version: '18'
 
-      - name: Enable Gradle Wrapper caching (optimization)
-        uses: actions/cache@v6
+      # Was a hand-rolled actions/cache over ~/.gradle/caches keyed on hashFiles of
+      # every gradle file. Its restore-keys fallback happily restored a stale entry
+      # and nothing ever pruned it, and its key scheme could not share anything with
+      # the setup-gradle cache the other 8 workflows use. setup-gradle handles both.
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v6
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+          cache-read-only: false
 
       - name: Get version name and code from libs.versions.toml
         id: get_version
