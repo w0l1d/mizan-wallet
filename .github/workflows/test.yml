@@ -5,6 +5,13 @@ on:
     branches:
       - main
   pull_request:
+  # Manual trigger exists so the Gradle cache can be seeded on main without
+  # waiting for a merge -- see cache-read-only below.
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -21,6 +28,13 @@ jobs:
 
       - name: Gradle cache
         uses: gradle/actions/setup-gradle@v6
+        with:
+          # Only main pushes and manual dispatches write the Gradle user-home
+          # cache; PR runs read it. Previously nothing ever wrote it (setup-gradle
+          # is read-only off the default branch and main is pushed only on merge),
+          # so every job started with an empty ~/.gradle: it re-downloaded the
+          # Gradle distribution and recompiled all 45 modules from scratch.
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Inject google-services.json
         run: |
