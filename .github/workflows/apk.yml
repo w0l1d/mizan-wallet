@@ -9,6 +9,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+# cancel-in-progress is scoped to pull_request on purpose: the auto_tag job below
+# commits a version bump and pushes a tag on main, and cancelling that mid-push
+# would leave the tag and libs.versions.toml out of sync.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   auto_tag:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -86,6 +93,10 @@ jobs:
 
       - name: Gradle cache
         uses: gradle/actions/setup-gradle@v6
+        with:
+          # Main/tag pushes and manual dispatches write the Gradle user-home cache;
+          # PR runs read it. See the same expression in test.yml et al.
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Inject google-services.json
         run: |
