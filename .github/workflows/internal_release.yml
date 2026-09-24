@@ -16,6 +16,11 @@ jobs:
     steps:
       - name: Checkout GIT
         uses: actions/checkout@v7
+        with:
+          # Full history + tags: app/build.gradle.kts decides release vs beta from
+          # the tags at HEAD and counts commits since the last release tag. A
+          # depth-1 clone has neither, and would version this build as a beta.
+          fetch-depth: 0
 
       - name: Setup Java SDK
         uses: actions/setup-java@v5

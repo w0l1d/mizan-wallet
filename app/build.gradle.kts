@@ -1,3 +1,5 @@
+import java.time.LocalDate
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -15,38 +17,84 @@ android {
     namespace = "com.ivy.wallet"
     compileSdk = libs.versions.compile.sdk.get().toInt()
 
+    // ---------------------------------------------------------------------
+    // Release channel
+    //
+    // A build is a RELEASE when its commit carries a git tag, and a BETA
+    // otherwise. libs.versions.toml always holds the LAST RELEASED version,
+    // so a beta must not inherit it verbatim - that is what made every
+    // develop build masquerade as the previous release. Instead a beta
+    // advertises the release it is heading toward:
+    //
+    //   release   2026.10.01                   (207)   "Mizan"
+    //   beta      2026.09.24-beta.49+a1a2855   (207)   "Mizan Beta"
+    //
+    //   <build date>-beta.<commits since last release tag>+<short sha>
+    //
+    // The counter orders consecutive betas; the sha pins the exact commit.
+    // Beta version code is last released code + 1 - the code the next
+    // release will carry - so a beta always outranks the release it
+    // supersedes, and the eventual release installs cleanly over it.
+    // ---------------------------------------------------------------------
+
+    // Returns trimmed stdout, or null when git is unavailable or says nothing.
+    fun git(vararg args: String): String? = try {
+        providers.exec { commandLine("git", *args) }
+            .standardOutput.asText.get().trim().ifEmpty { null }
+    } catch (_: Exception) {
+        null
+    }
+
+    val baseVersionName = libs.versions.version.name.get()
+    val baseVersionCode = libs.versions.version.code.get().toInt()
+
+    val shortSha = git("rev-parse", "--short", "HEAD")
+
+    // `git tag --points-at HEAD` exits 0 either way; empty output = untagged.
+    val isRelease = git("tag", "--points-at", "HEAD") != null
+
+    // Commits since the last release tag, so consecutive betas are ordered.
+    // Falls back to total commit count before the first tag ever exists.
+    val lastReleaseTag = git("describe", "--tags", "--abbrev=0")
+    val commitsSinceRelease = when (lastReleaseTag) {
+        null -> git("rev-list", "--count", "HEAD")
+        else -> git("rev-list", "--count", "$lastReleaseTag..HEAD")
+    }?.toIntOrNull() ?: 0
+
+    // Read through providers.exec so the configuration cache re-evaluates the
+    // date each build instead of freezing an earlier day's value into a
+    // cached entry. LocalDate covers platforms without a `date` binary.
+    val buildDate = try {
+        providers.exec { commandLine("date", "+%Y.%m.%d") }
+            .standardOutput.asText.get().trim()
+    } catch (_: Exception) {
+        LocalDate.now().toString().replace('-', '.')
+    }
+
+    // No git at all (e.g. a source archive): fall back to the released
+    // version rather than inventing a beta string we cannot substantiate.
+    val isBeta = !isRelease && shortSha != null
+
+    val appVersionName = when {
+        isBeta -> "$buildDate-beta.$commitsSinceRelease+$shortSha"
+        else -> baseVersionName
+    }
+    val appVersionCode = when {
+        isBeta -> baseVersionCode + 1
+        else -> baseVersionCode
+    }
+    // Launcher label, so a beta is obvious on the device without opening
+    // Settings. Applied to `demo` only: `release` feeds Google Play, which
+    // must never be relabelled by an accidental untagged build.
+    val demoAppName = if (isBeta) "Mizan Beta" else "Mizan"
+
     defaultConfig {
         applicationId = "dev.w0l1d.mizan"
         minSdk = libs.versions.min.sdk.get().toInt()
         targetSdk = libs.versions.compile.sdk.get().toInt()
 
-        val baseVersionName = libs.versions.version.name.get()
-        val baseVersionCode = libs.versions.version.code.get().toInt()
-
-        // Append -dev-<short-sha> for non-tagged builds so every develop APK
-        // carries a unique, traceable version string.
-        val (versionName, versionCode) = try {
-            val shortSha = providers.exec {
-                commandLine("git", "rev-parse", "--short", "HEAD")
-            }.standardOutput.asText.get().trim()
-
-            // git tag --points-at HEAD always succeeds (exit 0), empty output = no tag
-            val tagPointsAtHead = providers.exec {
-                commandLine("git", "tag", "--points-at", "HEAD")
-            }.standardOutput.asText.get().trim()
-
-            if (tagPointsAtHead.isNotEmpty()) {
-                baseVersionName to baseVersionCode
-            } else {
-                "$baseVersionName-dev-$shortSha" to baseVersionCode
-            }
-        } catch (_: Exception) {
-            // Fallback for environments without git
-            baseVersionName to baseVersionCode
-        }
-
-        this.versionName = versionName
-        this.versionCode = versionCode
+        versionName = appVersionName
+        versionCode = appVersionCode
     }
 
     androidResources {
@@ -115,7 +163,7 @@ android {
             signingConfig = signingConfigs.getByName("debug")
 
             applicationIdSuffix = ".debug"
-            resValue("string", "app_name", "Mizan")
+            resValue("string", "app_name", demoAppName)
         }
     }
 
