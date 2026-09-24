@@ -3,9 +3,18 @@ name: APK
 on:
   push:
     branches:
+      # `develop` builds and validates a beta on every push, but does NOT send
+      # it: publish_apk's `if` below deliberately omits develop. Dispatch this
+      # workflow on develop when you actually want the APK in Telegram.
       - main
+      - develop
     tags:
-      - '*'
+      # `v*` only. A beta tag IS the beta version string, so the old `'*'` made
+      # every tag the publish job writes a candidate for re-triggering this
+      # workflow - an endless build/send loop, prevented today only by GitHub
+      # not firing workflows for pushes made with GITHUB_TOKEN. Don't rely on
+      # that: a tag pushed by a human would loop.
+      - 'v*'
   pull_request:
   workflow_dispatch:
 
@@ -143,6 +152,16 @@ jobs:
           if [ -n "$(git tag --points-at HEAD --list 'v*')" ]; then
             CHANNEL="release"
             EXPECTED_VERSION_CODE="$BASE_VERSION_CODE"
+
+            # A release tag can arrive by hand, not just from auto_tag, and
+            # nothing else checks that its NAME agrees with the version the APK
+            # actually carries. Without this, pushing `v9.9.9` onto any commit
+            # ships that commit's toml version under a tag that lies about it.
+            EXPECTED_TAG="v${EXPECTED_VERSION_NAME}-${BASE_VERSION_CODE}"
+            if ! git tag --points-at HEAD --list 'v*' | grep -qx "$EXPECTED_TAG"; then
+              echo "::error::release tag mismatch! This commit carries $(git tag --points-at HEAD --list 'v*' | tr '\n' ' ')but a build of it is version $EXPECTED_VERSION_NAME ($BASE_VERSION_CODE), which must be tagged $EXPECTED_TAG."
+              exit 1
+            fi
           else
             CHANNEL="beta"
             LAST_TAG=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)

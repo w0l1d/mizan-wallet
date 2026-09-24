@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
   pull_request:
   # Manual trigger exists so the Gradle cache can be seeded on main without
   # waiting for a merge -- see cache-read-only below.
