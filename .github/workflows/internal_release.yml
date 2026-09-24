@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   google_play_release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout GIT
@@ -23,9 +23,9 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Java SDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: '18'
 
       - name: Setup Ruby (for Fastlane)
@@ -101,7 +101,7 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
 
   github_release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
 
@@ -115,9 +115,9 @@ jobs:
         run: git fetch --tags
 
       - name: Setup Java SDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: '18'
 
       # Was a hand-rolled actions/cache over ~/.gradle/caches keyed on hashFiles of
@@ -165,35 +165,25 @@ jobs:
           name: Mizan-Demo.apk
           path: app/build/outputs/apk/demo/app-demo.apk
 
-      - name: Prepare changelog for GitHub Release
-        id: changelog
-        continue-on-error: true
-        uses: Bullrich/generate-release-changelog@v2.0.2
-        env:
-          REPO: ${{ github.repository }}
+      # Keeps the asset named after the tag, as the old upload-release-asset
+      # step did via its `asset_name` input.
+      - name: Name the release asset after the tag
+        run: cp app/build/outputs/apk/demo/app-demo.apk "Mizan-${TAG_NAME}.apk"
 
-      - name: Create GitHub Release
-        id: create_github_release
-        uses: actions/create-release@v1.1.4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Replaces three dead actions: actions/create-release and
+      # actions/upload-release-asset were archived by GitHub in 2020, and
+      # Bullrich/generate-release-changelog last shipped in 2023. One maintained
+      # action creates the release, writes the notes from the commits since the
+      # previous tag, and attaches the APK.
+      - name: Create GitHub Release with the APK attached
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.TAG_NAME }}
-          release_name: Release ${{ env.TAG_NAME }}
-          body: |
-            ${{ steps.changelog.outputs.changelog }}
+          name: Release ${{ env.TAG_NAME }}
+          generate_release_notes: true
           draft: false
           prerelease: false
-
-      - name: Upload APK to GitHub Release
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_github_release.outputs.upload_url }}
-          asset_path: app/build/outputs/apk/demo/app-demo.apk
-          asset_name: Mizan-${{ env.TAG_NAME }}.apk
-          asset_content_type: application/vnd.android.package-archive
+          files: Mizan-${{ env.TAG_NAME }}.apk
 
       - name: Gather release context
         id: context
