@@ -8,18 +8,47 @@ on:
 jobs:
   update_version:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history + tags: the no-op guard below counts commits since the
+          # last release tag, which a depth-1 clone cannot see.
+          fetch-depth: 0
 
       - name: Set up Git
         run: |
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
 
+      - name: Skip release if nothing changed since the last one
+        id: changes
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+
+          if [ -z "$LAST_TAG" ]; then
+            echo "No release tag found yet; treating as a first release."
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          NEW_COMMITS=$(git rev-list --count "$LAST_TAG"..HEAD)
+          echo "Last release tag: $LAST_TAG ($NEW_COMMITS new commits on main since)"
+
+          if [ "$NEW_COMMITS" -eq 0 ]; then
+            echo "Nothing changed since $LAST_TAG - skipping this release."
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Update version in libs.versions.toml
         id: update_version
+        if: steps.changes.outputs.should_release == 'true'
         run: |
           VERSION_FILE="gradle/libs.versions.toml"
           CURRENT_DATE=$(date +'%Y.%m.%d')
@@ -34,11 +63,13 @@ jobs:
 
       - name: Set branch name
         id: set_branch_name
+        if: steps.changes.outputs.should_release == 'true'
         run: |
           BRANCH_NAME="auto-update-$(date +'%Y%m%d%H%M%S')"
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: Create a Pull Request
+        if: steps.changes.outputs.should_release == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
