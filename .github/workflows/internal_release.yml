@@ -67,6 +67,19 @@ jobs:
           ${{ secrets.GOOGLE_SERVICES_JSON }}
           EOF
 
+      - name: Refuse to release an untagged commit
+        run: |
+          # Same guarantee as apk.yml: nothing ships unless its version is a tag.
+          # A `release` build takes its version from libs.versions.toml verbatim,
+          # so on an untagged commit it would ship to Play wearing the LAST
+          # release's version - the exact bug this whole scheme exists to stop.
+          RELEASE_TAG=$(git tag --points-at HEAD --list 'v*' | head -1)
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "::error::HEAD carries no release tag (v*). Merge to main and let apk.yml's auto_tag cut one, or tag this commit, before releasing to Play."
+            exit 1
+          fi
+          echo "Releasing $RELEASE_TAG"
+
       - name: Build production App Bundle
         run: bundle exec fastlane production_build
         env:
@@ -127,7 +140,9 @@ jobs:
       - name: Reuse or create release tag
         run: |
           EXPECTED_TAG="v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}"
-          EXISTING_TAG=$(git tag --points-at HEAD)
+          # `v*` only: a beta tag written by apk.yml's publish job names the same
+          # commit but is not a release tag and must not be reused as one.
+          EXISTING_TAG=$(git tag --points-at HEAD --list 'v*')
 
           if [ -n "$EXISTING_TAG" ]; then
             echo "Reusing existing tag from apk.yml auto_tag: $EXISTING_TAG"

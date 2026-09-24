@@ -1,5 +1,3 @@
-import java.time.LocalDate
-
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -20,21 +18,28 @@ android {
     // ---------------------------------------------------------------------
     // Release channel
     //
-    // A build is a RELEASE when its commit carries a git tag, and a BETA
-    // otherwise. libs.versions.toml always holds the LAST RELEASED version,
-    // so a beta must not inherit it verbatim - that is what made every
-    // develop build masquerade as the previous release. Instead a beta
-    // advertises the release it is heading toward:
+    // A build is a RELEASE when its commit carries a release tag (`v*`), and a
+    // BETA otherwise. libs.versions.toml always holds the LAST RELEASED version,
+    // so a beta must not inherit it verbatim - that is what made every develop
+    // build masquerade as the previous release. A beta instead names itself
+    // after the commit it was built from:
     //
-    //   release   2026.10.01                   (207)   "Mizan"
-    //   beta      2026.09.24-beta.49+a1a2855   (207)   "Mizan Beta"
+    //   release   2026.10.01                    (207)
+    //   beta      2026.09.24-beta.49+a1a28556   (20600049)
     //
-    //   <build date>-beta.<commits since last release tag>+<short sha>
+    //   <commit date>-beta.<commits since last release tag>+<short sha>
     //
-    // The counter orders consecutive betas; the sha pins the exact commit.
-    // Beta version code is last released code + 1 - the code the next
-    // release will carry - so a beta always outranks the release it
-    // supersedes, and the eventual release installs cleanly over it.
+    // Every part is a property of the COMMIT, never of the machine or the day
+    // the build ran. Two builds of the same commit therefore always produce the
+    // same version, which is what lets the publish step tag the commit with the
+    // exact string already baked into the APK. The counter orders consecutive
+    // betas and the sha keeps two branches at the same depth from colliding.
+    //
+    // Beta version codes live in their own numbering space, <released code> *
+    // 100000 + <commits since release>, so consecutive betas upgrade over each
+    // other properly. They never collide with the release lineage: `demo`
+    // carries applicationIdSuffix ".debug" and so is a different app from the
+    // `release` build that Google Play sees, which keeps the plain toml code.
     // ---------------------------------------------------------------------
 
     // Returns trimmed stdout, or null when git is unavailable or says nothing.
@@ -50,37 +55,43 @@ android {
 
     val shortSha = git("rev-parse", "--short", "HEAD")
 
-    // `git tag --points-at HEAD` exits 0 either way; empty output = untagged.
-    val isRelease = git("tag", "--points-at", "HEAD") != null
+    // Release tags are `v<date>-<code>`; beta tags are the beta version string
+    // itself. Matching on `v*` is what stops a beta tag - which the publish step
+    // writes onto this very commit - from promoting the next build to a release.
+    val isRelease = git("tag", "--points-at", "HEAD", "--list", "v*") != null
 
-    // Commits since the last release tag, so consecutive betas are ordered.
-    // Falls back to total commit count before the first tag ever exists.
-    val lastReleaseTag = git("describe", "--tags", "--abbrev=0")
+    // Commits since the last RELEASE tag, so consecutive betas are ordered and
+    // beta tags do not reset the counter. Falls back to the total commit count
+    // before the first release tag ever exists.
+    val lastReleaseTag = git("describe", "--tags", "--abbrev=0", "--match", "v*")
     val commitsSinceRelease = when (lastReleaseTag) {
         null -> git("rev-list", "--count", "HEAD")
         else -> git("rev-list", "--count", "$lastReleaseTag..HEAD")
     }?.toIntOrNull() ?: 0
 
-    // Read through providers.exec so the configuration cache re-evaluates the
-    // date each build instead of freezing an earlier day's value into a
-    // cached entry. LocalDate covers platforms without a `date` binary.
-    val buildDate = try {
-        providers.exec { commandLine("date", "+%Y.%m.%d") }
-            .standardOutput.asText.get().trim()
-    } catch (_: Exception) {
-        LocalDate.now().toString().replace('-', '.')
-    }
+    // The COMMIT's date, not today's. A version derived from the build date
+    // cannot be recomputed tomorrow, which would mean the publish step could
+    // never tag a commit with the string already inside its APK.
+    val commitDate = git("log", "-1", "--format=%cd", "--date=format:%Y.%m.%d")
 
-    // No git at all (e.g. a source archive): fall back to the released
-    // version rather than inventing a beta string we cannot substantiate.
-    val isBeta = !isRelease && shortSha != null
+    // Uncommitted work cannot be named by a tag. Marking it here is what makes
+    // the publish gate able to refuse such a build instead of shipping a version
+    // that points at a commit whose contents it does not actually have.
+    val isDirty = git("status", "--porcelain") != null
+
+    // No git at all (e.g. a source archive): fall back to the released version
+    // rather than inventing a beta string we cannot substantiate.
+    val isBeta = !isRelease && shortSha != null && commitDate != null
 
     val appVersionName = when {
-        isBeta -> "$buildDate-beta.$commitsSinceRelease+$shortSha"
+        isBeta -> buildString {
+            append("$commitDate-beta.$commitsSinceRelease+$shortSha")
+            if (isDirty) append(".dirty")
+        }
         else -> baseVersionName
     }
     val appVersionCode = when {
-        isBeta -> baseVersionCode + 1
+        isBeta -> baseVersionCode * 100000 + commitsSinceRelease
         else -> baseVersionCode
     }
     // Launcher label, so a beta is obvious on the device without opening

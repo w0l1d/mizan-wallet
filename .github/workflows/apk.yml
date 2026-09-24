@@ -33,7 +33,9 @@ jobs:
       - name: Check if commit is already tagged
         id: check_tag
         run: |
-          EXISTING_TAG=$(git tag --points-at HEAD)
+          # `v*` only: a beta tag written by the publish job names the same
+          # commit but must never suppress the release bump.
+          EXISTING_TAG=$(git tag --points-at HEAD --list 'v*')
           if [ -n "$EXISTING_TAG" ]; then
             echo "Commit already tagged: $EXISTING_TAG"
             echo "skip=true" >> $GITHUB_OUTPUT
@@ -76,6 +78,13 @@ jobs:
       always() &&
       (needs.auto_tag.result == 'success' || needs.auto_tag.result == 'skipped')
     runs-on: ubuntu-latest
+    # No `permissions:` block on purpose - this job runs on pull requests and
+    # only ever reads. Everything that writes to the repo lives in publish_apk,
+    # which pull requests never reach.
+    outputs:
+      version_name: ${{ needs.assemble_demo_apk.outputs.version_name }}
+      version_code: ${{ needs.assemble_demo_apk.outputs.version_code }}
+      channel: ${{ needs.assemble_demo_apk.outputs.channel }}
     steps:
       - name: Checkout GIT
         uses: actions/checkout@v7
@@ -123,33 +132,29 @@ jobs:
           APK_VERSION_CODE=$(echo "$BADGING" | grep -oP "versionCode='\K[^']+")
           APK_LABEL=$(echo "$BADGING" | grep -oP "application-label:'\K[^']+")
 
-          BASE_VERSION_NAME=$(grep 'version-name =' gradle/libs.versions.toml | awk -F'=' '{print $2}' | tr -d ' "')
           BASE_VERSION_CODE=$(grep 'version-code =' gradle/libs.versions.toml | awk -F'=' '{print $2}' | tr -d ' "')
 
-          # Mirror the channel logic in app/build.gradle.kts. A tagged commit is
-          # a release and ships the version in libs.versions.toml verbatim; an
-          # untagged commit is a beta and advertises the NEXT release instead:
-          #   <build date>-beta.<commits since last tag>+<short sha>  (code + 1)
-          SHORT_SHA=$(git rev-parse --short HEAD)
-          TAG_AT_HEAD=$(git tag --points-at HEAD)
+          # Expected version comes from the SAME script that will tag the commit
+          # after a successful build, so the tag and the APK cannot disagree.
+          # Release tags are `v*`; a beta tag from a previous publish of this
+          # commit must not be mistaken for one.
+          EXPECTED_VERSION_NAME=$(./scripts/tag-build.sh --print)
 
-          if [ -n "$TAG_AT_HEAD" ]; then
+          if [ -n "$(git tag --points-at HEAD --list 'v*')" ]; then
             CHANNEL="release"
-            EXPECTED_VERSION_NAME="$BASE_VERSION_NAME"
             EXPECTED_VERSION_CODE="$BASE_VERSION_CODE"
           else
             CHANNEL="beta"
-            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+            LAST_TAG=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
             if [ -n "$LAST_TAG" ]; then
               COMMITS_SINCE=$(git rev-list --count "$LAST_TAG"..HEAD)
             else
               COMMITS_SINCE=$(git rev-list --count HEAD)
             fi
-            EXPECTED_VERSION_CODE=$((BASE_VERSION_CODE + 1))
-            EXPECTED_VERSION_NAME="$(date -u +'%Y.%m.%d')-beta.$COMMITS_SINCE+$SHORT_SHA"
-            # The Gradle build stamped its own date. If this step crosses UTC
-            # midnight after that, yesterday's stamp is still correct.
-            EXPECTED_VERSION_NAME_ALT="$(date -u -d yesterday +'%Y.%m.%d')-beta.$COMMITS_SINCE+$SHORT_SHA"
+            # Betas number in their own space (see app/build.gradle.kts): `demo`
+            # is a separate app from the `release` build Play sees, so this never
+            # collides with the release lineage.
+            EXPECTED_VERSION_CODE=$((BASE_VERSION_CODE * 100000 + COMMITS_SINCE))
           fi
 
           echo "Channel:  $CHANNEL"
@@ -161,8 +166,7 @@ jobs:
             exit 1
           fi
 
-          if [ "$APK_VERSION_NAME" != "$EXPECTED_VERSION_NAME" ] && \
-             [ "$APK_VERSION_NAME" != "${EXPECTED_VERSION_NAME_ALT:-}" ]; then
+          if [ "$APK_VERSION_NAME" != "$EXPECTED_VERSION_NAME" ]; then
             echo "::error::APK version name mismatch! Built APK reports $APK_VERSION_NAME but expected $EXPECTED_VERSION_NAME"
             exit 1
           fi
@@ -188,13 +192,96 @@ jobs:
           name: Mizan-Demo.apk
           path: app/build/outputs/apk/demo/app-demo.apk
 
+
+  publish_apk:
+    needs: [auto_tag, assemble_demo_apk]
+    # The publish gate. Only builds that actually get sent to people reach this
+    # job, so only they are tagged - a PR run neither tags nor holds a token
+    # that could. `always()` is needed because auto_tag is skipped off main.
+    if: |
+      always() &&
+      needs.assemble_demo_apk.result == 'success' &&
+      (needs.auto_tag.result == 'success' || needs.auto_tag.result == 'skipped') &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout GIT
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.auto_tag.outputs.tag_name != '' && needs.auto_tag.outputs.tag_name || github.ref }}
+          fetch-depth: 0
+
+      - name: Download the built APK
+        uses: actions/download-artifact@v7
+        with:
+          name: Mizan-Demo.apk
+          path: apk
+
+      - name: Tag this commit with the version inside the APK
+        env:
+          VERSION_NAME: ${{ needs.assemble_demo_apk.outputs.version_name }}
+          CHANNEL: ${{ needs.assemble_demo_apk.outputs.channel }}
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+
+          if [ "$CHANNEL" = "release" ]; then
+            # auto_tag already pushed `v<date>-<code>` for this commit.
+            echo "Release build; already tagged by auto_tag. Nothing to do."
+            exit 0
+          fi
+
+          # The version passed here was read out of the built APK, so the tag
+          # created is byte-for-byte the string the user will see in Settings.
+          ./scripts/tag-build.sh --push --remote origin --version "$VERSION_NAME"
+
+      - name: Refuse to send an untagged build
+        id: gate
+        env:
+          VERSION_NAME: ${{ needs.assemble_demo_apk.outputs.version_name }}
+          CHANNEL: ${{ needs.assemble_demo_apk.outputs.channel }}
+        run: |
+          # The guarantee, enforced at the one place that matters: nothing leaves
+          # here unless the exact commit it was built from is tagged on the
+          # remote. A beta tag IS the version string; a release tag is `v*`.
+          if [ "$CHANNEL" = "release" ]; then
+            TAG_NAME=$(git tag --points-at HEAD --list 'v*' | head -1)
+          else
+            TAG_NAME="$VERSION_NAME"
+          fi
+
+          if [ -z "$TAG_NAME" ]; then
+            echo "::error::no tag on this commit for a $CHANNEL build - refusing to send '$VERSION_NAME'."
+            exit 1
+          fi
+
+          # `^{}` is the peeled line an annotated tag adds: the commit it names.
+          REMOTE_SHA=$(git ls-remote --tags origin "refs/tags/$TAG_NAME" \
+                       | awk '$2 ~ /\^\{\}$/ {print $1}' | head -1)
+          [ -z "$REMOTE_SHA" ] && \
+            REMOTE_SHA=$(git ls-remote --tags origin "refs/tags/$TAG_NAME" | awk '{print $1}' | head -1)
+
+          if [ -z "$REMOTE_SHA" ]; then
+            echo "::error::tag '$TAG_NAME' does not exist on origin - refusing to send this APK."
+            exit 1
+          fi
+          if [ "$REMOTE_SHA" != "$(git rev-parse HEAD)" ]; then
+            echo "::error::tag '$TAG_NAME' on origin points at $REMOTE_SHA, not the commit this APK was built from ($(git rev-parse HEAD))."
+            exit 1
+          fi
+
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
+          echo "'$TAG_NAME' exists on origin and names this exact commit."
+
       - name: Gather release context
         id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Version deliberately NOT read here: it comes from the validate step,
-          # which reads it off the built APK. libs.versions.toml holds the last
+          # Version deliberately NOT read here: it comes from assemble_demo_apk,
+          # which read it off the built APK. libs.versions.toml holds the last
           # RELEASED version and is wrong for every beta.
           COMMIT_SUBJECT=$(git log -1 --pretty=%s)
           COMMIT_AUTHOR=$(git log -1 --pretty=%an)
@@ -215,18 +302,20 @@ jobs:
           echo "pr_branch=$(echo "$PR_JSON" | jq -r '.[0].head.ref // empty')" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK in Telegram Group
-        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        # No `if:` - the whole job is already behind the publish gate.
         env:
           COMMIT_BODY: ${{ steps.context.outputs.commit_body }}
         run: |
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c 1-7)
           COMMIT_LINK="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
-          APK_SHA256=$(sha256sum app/build/outputs/apk/demo/app-demo.apk | awk '{print $1}')
+          APK_SHA256=$(sha256sum apk/app-demo.apk | awk '{print $1}')
 
+          # Only a release tag has a GitHub release page behind it; a beta tag
+          # is shown as the checkout target instead.
           TAG_INFO=""
-          TAG_NAME=$(git tag --points-at HEAD | head -1)
-          if [ -n "$TAG_NAME" ]; then
-            RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_NAME}"
+          RELEASE_TAG=$(git tag --points-at HEAD --list 'v*' | head -1)
+          if [ -n "$RELEASE_TAG" ]; then
+            RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}"
             TAG_INFO=$'\n📋 Release: '"$RELEASE_URL"
           fi
 
@@ -241,15 +330,17 @@ jobs:
           BODY=$(printf '%s' "$COMMIT_BODY" | head -c 400)
           [ "${#COMMIT_BODY}" -gt 400 ] && BODY="${BODY}…"
 
-          VERSION_LABEL="${{ steps.validate.outputs.version_name }} (${{ steps.validate.outputs.version_code }})"
+          VERSION_LABEL="${{ needs.assemble_demo_apk.outputs.version_name }} (${{ needs.assemble_demo_apk.outputs.version_code }})"
 
-          if [ "${{ steps.validate.outputs.channel }}" = "beta" ]; then
+          if [ "${{ needs.assemble_demo_apk.outputs.channel }}" = "beta" ]; then
             HEADER=$'🧪 Mizan BETA — not a release'
           else
             HEADER=$'🚀 Mizan RELEASE'
           fi
 
-          CAPTION="$HEADER"$'\n📦 '"$VERSION_LABEL"$'\n\n📝 '"$COMMIT_SUBJECT"
+          CAPTION="$HEADER"$'\n📦 '"$VERSION_LABEL"
+          CAPTION+=$'\n🏷 git checkout '"${{ steps.gate.outputs.tag_name }}"
+          CAPTION+=$'\n\n📝 '"$COMMIT_SUBJECT"
           [ -n "$BODY" ] && CAPTION+=$'\n\n'"$BODY"
           if [ -n "$PR_NUMBER" ]; then
             CAPTION+=$'\n\n🔀 PR #'"$PR_NUMBER"$': '"$PR_TITLE"
@@ -262,6 +353,6 @@ jobs:
 
           curl -F "chat_id=-1003694191301" \
                -F "message_thread_id=14" \
-               -F "document=@app/build/outputs/apk/demo/app-demo.apk" \
+               -F "document=@apk/app-demo.apk" \
                -F "caption=$CAPTION" \
                https://api.telegram.org/bot${{ secrets.BOTFATHER_TELEGRAM_BOT_TOKEN }}/sendDocument
