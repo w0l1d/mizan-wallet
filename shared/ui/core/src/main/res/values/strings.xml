@@ -13,6 +13,8 @@
     <string name="unlock">Unlock</string>
     <string name="current_balance">CURRENT BALANCE</string>
     <string name="balance_after_payments">BALANCE AFTER PLANNED PAYMENTS</string>
+    <string name="excluded_accounts">EXCLUDED ACCOUNTS</string>
+    <string name="balance_including_excluded_accounts">BALANCE INCLUDING EXCLUDED ACCOUNTS</string>
     <string name="connect">Connect</string>
     <string name="sync_transactions">Sync transactions</string>
     <string name="syncing_transactions">Syncing transactions…</string>

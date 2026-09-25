@@ -9,5 +9,14 @@ data class BalanceState(
     val baseCurrencyCode: String,
     val currentBalance: Double,
     val plannedPaymentsAmount: Double,
-    val balanceAfterPlannedPayments: Double
+    val balanceAfterPlannedPayments: Double,
+    /**
+     * What the accounts excluded from the balance hold, planned payments included.
+     * Zero when no account is excluded.
+     */
+    val excludedAccountsBalance: Double,
+    val showExcludedAccountsBalance: Boolean,
+    val currentBalanceWithExcluded: Double,
+    val plannedPaymentsAmountWithExcluded: Double,
+    val balanceAfterPlannedPaymentsWithExcluded: Double,
 )

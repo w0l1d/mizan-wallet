@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
 import com.ivy.base.time.TimeConverter
 import com.ivy.base.time.TimeProvider
+import com.ivy.domain.features.Features
 import com.ivy.ui.ComposeViewModel
 import com.ivy.legacy.data.model.TimePeriod
 import com.ivy.legacy.utils.ioThread
@@ -28,6 +29,7 @@ class BalanceViewModel @Inject constructor(
     private val ivyContext: com.ivy.legacy.IvyWalletCtx,
     private val baseCurrencyAct: BaseCurrencyAct,
     private val calcWalletBalanceAct: CalcWalletBalanceAct,
+    private val features: Features,
     private val timeProvider: TimeProvider,
     private val timeConverter: TimeConverter,
 ) : ComposeViewModel<BalanceState, BalanceEvent>() {
@@ -37,6 +39,9 @@ class BalanceViewModel @Inject constructor(
     private var currentBalance by mutableDoubleStateOf(0.0)
     private var plannedPaymentsAmount by mutableDoubleStateOf(0.0)
     private var balanceAfterPlannedPayments by mutableDoubleStateOf(0.0)
+    private var currentBalanceWithExcluded by mutableDoubleStateOf(0.0)
+    private var plannedPaymentsAmountWithExcluded by mutableDoubleStateOf(0.0)
+    private var balanceAfterPlannedPaymentsWithExcluded by mutableDoubleStateOf(0.0)
     private var numberOfMonthsAhead by mutableIntStateOf(1)
 
     @Composable
@@ -50,7 +55,13 @@ class BalanceViewModel @Inject constructor(
             balanceAfterPlannedPayments = balanceAfterPlannedPayments,
             currentBalance = currentBalance,
             baseCurrencyCode = baseCurrencyCode,
-            plannedPaymentsAmount = plannedPaymentsAmount
+            plannedPaymentsAmount = plannedPaymentsAmount,
+            excludedAccountsBalance =
+            balanceAfterPlannedPaymentsWithExcluded - balanceAfterPlannedPayments,
+            showExcludedAccountsBalance = features.showExcludedAccountsBalance.asEnabledState(),
+            currentBalanceWithExcluded = currentBalanceWithExcluded,
+            plannedPaymentsAmountWithExcluded = plannedPaymentsAmountWithExcluded,
+            balanceAfterPlannedPaymentsWithExcluded = balanceAfterPlannedPaymentsWithExcluded,
         )
     }
 
@@ -72,19 +83,36 @@ class BalanceViewModel @Inject constructor(
             currentBalance = calcWalletBalanceAct(
                 CalcWalletBalanceAct.Input(baseCurrencyCode)
             ).toDouble()
+            currentBalanceWithExcluded = calcWalletBalanceAct(
+                CalcWalletBalanceAct.Input(baseCurrencyCode, withExcluded = true)
+            ).toDouble()
+
+            val range = timePeriod.toRange(
+                ivyContext.startDayOfMonth,
+                timeConverter,
+                timeProvider
+            )
+            val monthsAhead = if (numberOfMonthsAhead >= 0) {
+                numberOfMonthsAhead.toDouble()
+            } else {
+                1.0
+            }
 
             plannedPaymentsAmount = ioThread {
-                plannedPaymentsLogic.plannedPaymentsAmountFor(
-                    timePeriod.toRange(ivyContext.startDayOfMonth, timeConverter, timeProvider)
-                    // + positive if Income > Expenses else - negative
-                ) * if (numberOfMonthsAhead >= 0) {
-                    numberOfMonthsAhead.toDouble()
-                } else {
-                    1.0
-                }
+                // + positive if Income > Expenses else - negative
+                plannedPaymentsLogic.plannedPaymentsAmountFor(range) * monthsAhead
             }
+            plannedPaymentsAmountWithExcluded = ioThread {
+                plannedPaymentsLogic.plannedPaymentsAmountFor(
+                    range = range,
+                    withExcluded = true
+                ) * monthsAhead
+            }
+
             balanceAfterPlannedPayments =
                 currentBalance + plannedPaymentsAmount
+            balanceAfterPlannedPaymentsWithExcluded =
+                currentBalanceWithExcluded + plannedPaymentsAmountWithExcluded
         }
     }
 
