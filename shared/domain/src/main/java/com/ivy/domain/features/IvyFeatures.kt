@@ -78,6 +78,14 @@ class IvyFeatures @Inject constructor() : Features {
         defaultValue = false
     )
 
+    override val showExcludedAccountsBalance = BoolFeature(
+        key = "show_excluded_accounts_balance",
+        group = FeatureGroup.Account,
+        name = "Balance including excluded accounts",
+        description = "Add a second balance on the Balance screen that counts accounts excluded from the balance",
+        defaultValue = false
+    )
+
     override val allFeatures: List<BoolFeature>
         get() = listOf(
             sortCategoriesAscending,
@@ -87,7 +95,8 @@ class IvyFeatures @Inject constructor() : Features {
             showCategorySearchBar,
             hideTotalBalance,
             standardKeypadLayout,
-            showAccountColorsInTransactions
+            showAccountColorsInTransactions,
+            showExcludedAccountsBalance
             /* will be uncommented when this functionality
              * will be available across the application in up-coming PRs
             showDecimalNumber

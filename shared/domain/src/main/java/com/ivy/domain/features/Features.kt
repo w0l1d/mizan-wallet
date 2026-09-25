@@ -10,6 +10,7 @@ interface Features {
     val showDecimalNumber: BoolFeature
     val standardKeypadLayout: BoolFeature
     val showAccountColorsInTransactions: BoolFeature
+    val showExcludedAccountsBalance: BoolFeature
 
     val allFeatures: List<BoolFeature>
 }

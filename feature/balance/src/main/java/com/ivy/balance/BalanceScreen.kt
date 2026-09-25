@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -41,6 +44,7 @@ import com.ivy.navigation.navigation
 import com.ivy.ui.R
 import com.ivy.wallet.ui.theme.Gradient
 import com.ivy.wallet.ui.theme.Gray
+import com.ivy.wallet.ui.theme.Green
 import com.ivy.wallet.ui.theme.Orange
 import com.ivy.wallet.ui.theme.White
 import com.ivy.wallet.ui.theme.components.BalanceRow
@@ -89,30 +93,70 @@ private fun BoxWithConstraintsScope.UI(
             }
         )
 
-        Spacer(Modifier.height(32.dp))
-
-        CurrentBalance(
-            currency = state.baseCurrencyCode,
-            currentBalance = state.currentBalance
-        )
-
-        Spacer(Modifier.height(32.dp))
-
-        IvyDividerLine(
+        Column(
             modifier = Modifier
-                .padding(horizontal = 24.dp)
-        )
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+        ) {
+            Spacer(Modifier.height(32.dp))
 
-        Spacer(Modifier.height(40.dp))
+            CurrentBalance(
+                currency = state.baseCurrencyCode,
+                currentBalance = state.currentBalance
+            )
 
-        BalanceAfterPlannedPayments(
-            currency = state.baseCurrencyCode,
-            currentBalance = state.currentBalance,
-            plannedPaymentsAmount = state.plannedPaymentsAmount,
-            balanceAfterPlannedPayments = state.balanceAfterPlannedPayments
-        )
+            Spacer(Modifier.height(32.dp))
 
-        Spacer(Modifier.weight(1f))
+            IvyDividerLine(
+                modifier = Modifier
+                    .padding(horizontal = 24.dp)
+            )
+
+            Spacer(Modifier.height(40.dp))
+
+            ProjectedBalance(
+                title = stringResource(R.string.balance_after_payments),
+                titleColor = Orange,
+                currency = state.baseCurrencyCode,
+                currentBalance = state.currentBalance,
+                plannedPaymentsAmount = state.plannedPaymentsAmount,
+                balanceAfterPlannedPayments = state.balanceAfterPlannedPayments
+            )
+
+            val hasExcludedAccounts = state.excludedAccountsBalance != 0.0
+
+            if (hasExcludedAccounts) {
+                Spacer(Modifier.height(16.dp))
+
+                ExcludedAccountsRow(
+                    currency = state.baseCurrencyCode,
+                    excludedAccountsBalance = state.excludedAccountsBalance
+                )
+            }
+
+            if (hasExcludedAccounts && state.showExcludedAccountsBalance) {
+                Spacer(Modifier.height(32.dp))
+
+                IvyDividerLine(
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                )
+
+                Spacer(Modifier.height(40.dp))
+
+                ProjectedBalance(
+                    title = stringResource(R.string.balance_including_excluded_accounts),
+                    titleColor = Green,
+                    currency = state.baseCurrencyCode,
+                    currentBalance = state.currentBalanceWithExcluded,
+                    plannedPaymentsAmount = state.plannedPaymentsAmountWithExcluded,
+                    balanceAfterPlannedPayments =
+                    state.balanceAfterPlannedPaymentsWithExcluded
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
+        }
 
         CloseButton()
 
@@ -153,7 +197,9 @@ private fun ColumnScope.CurrentBalance(
 }
 
 @Composable
-private fun ColumnScope.BalanceAfterPlannedPayments(
+private fun ColumnScope.ProjectedBalance(
+    title: String,
+    titleColor: Color,
     currency: String,
     currentBalance: Double,
     plannedPaymentsAmount: Double,
@@ -162,9 +208,9 @@ private fun ColumnScope.BalanceAfterPlannedPayments(
     Text(
         modifier = Modifier
             .padding(horizontal = 32.dp),
-        text = stringResource(R.string.balance_after_payments),
+        text = title,
         style = UI.typo.b2.style(
-            color = Orange,
+            color = titleColor,
             fontWeight = FontWeight.ExtraBold
         )
     )
@@ -220,6 +266,37 @@ private fun ColumnScope.BalanceAfterPlannedPayments(
 }
 
 @Composable
+private fun ColumnScope.ExcludedAccountsRow(
+    currency: String,
+    excludedAccountsBalance: Double
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = stringResource(R.string.excluded_accounts),
+            style = UI.typo.c.style(
+                color = Gray,
+                fontWeight = FontWeight.Bold
+            )
+        )
+
+        Spacer(Modifier.weight(1f))
+
+        Text(
+            text = "${excludedAccountsBalance.format(2)} $currency",
+            style = UI.typo.nC.style(
+                color = Gray,
+                fontWeight = FontWeight.Bold
+            )
+        )
+    }
+}
+
+@Composable
 private fun ColumnScope.CloseButton() {
     val nav = navigation()
     IvyCircleButton(
@@ -249,6 +326,11 @@ private fun Preview(theme: Theme = Theme.LIGHT) {
                 currentBalance = 9326.55,
                 balanceAfterPlannedPayments = 8426.0,
                 plannedPaymentsAmount = -900.55,
+                excludedAccountsBalance = 5500.0,
+                showExcludedAccountsBalance = true,
+                currentBalanceWithExcluded = 14326.55,
+                plannedPaymentsAmountWithExcluded = -400.55,
+                balanceAfterPlannedPaymentsWithExcluded = 13926.0,
             )
         )
     }

@@ -38,14 +38,26 @@ class PlannedPaymentsLogic @Inject constructor(
         private const val AVG_DAYS_IN_MONTH = 30.436875
     }
 
-    suspend fun plannedPaymentsAmountFor(range: com.ivy.legacy.data.model.FromToTimeRange): Double {
+    suspend fun plannedPaymentsAmountFor(
+        range: com.ivy.legacy.data.model.FromToTimeRange,
+        withExcluded: Boolean = false,
+    ): Double {
         val baseCurrency = settingsDao.findFirst().currency
         val accounts = accountDao.findAll()
+        // Excluded accounts are left out of the wallet balance, so their planned
+        // payments must be left out too - otherwise the projection mixes a
+        // filtered balance with an unfiltered delta.
+        val balanceAccountIds = accounts
+            .filter { withExcluded || it.includeInBalance }
+            .map { it.id }
+            .toSet()
 
         return transactionDao.findAllDueToBetween(
             startDate = range.from(),
             endDate = range.to()
-        ).sumOf {
+        ).filter {
+            it.accountId in balanceAccountIds
+        }.sumOf {
             val amount = exchangeRatesLogic.amountBaseCurrency(
                 transaction = it.toLegacyDomain(),
                 baseCurrency = baseCurrency,
