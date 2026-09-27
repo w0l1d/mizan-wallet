@@ -277,10 +277,12 @@ jobs:
           fi
 
           # `^{}` is the peeled line an annotated tag adds: the commit it names.
-          REMOTE_SHA=$(git ls-remote --tags origin "refs/tags/$TAG_NAME" \
-                       | awk '$2 ~ /\^\{\}$/ {print $1}' | head -1)
-          [ -z "$REMOTE_SHA" ] && \
-            REMOTE_SHA=$(git ls-remote --tags origin "refs/tags/$TAG_NAME" | awk '{print $1}' | head -1)
+          # It is a ref in its own right, so it has to be asked for by name -
+          # the `refs/tags/$TAG_NAME` pattern alone does not match it, and the
+          # lone line left behind is the tag *object*, not the commit.
+          LS=$(git ls-remote --tags origin "refs/tags/$TAG_NAME" "refs/tags/$TAG_NAME^{}")
+          REMOTE_SHA=$(echo "$LS" | awk '$2 ~ /\^\{\}$/ {print $1}' | head -1)
+          [ -z "$REMOTE_SHA" ] && REMOTE_SHA=$(echo "$LS" | awk 'NF {print $1}' | head -1)
 
           if [ -z "$REMOTE_SHA" ]; then
             echo "::error::tag '$TAG_NAME' does not exist on origin - refusing to send this APK."
