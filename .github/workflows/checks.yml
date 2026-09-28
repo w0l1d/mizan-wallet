@@ -1,0 +1,100 @@
+name: Checks
+
+# Detekt, Lint, unit tests, Paparazzi and the Compose stability report used to be
+# five separate workflows. Each one checked out the repo, installed the JDK,
+# restored the Gradle cache, configured the build and compiled all 45 modules,
+# just to run a single Gradle task - so the same ~13 minute tax was paid five
+# times over, ~70 minutes per push on a private repo's metered minutes.
+#
+# One job, one Gradle invocation: the project is configured and compiled once and
+# every task reuses it. `--continue` keeps a single violation from masking the
+# other four results.
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  # `develop` pushes already run everything below, and the branching workflow is
+  # feat/* -> develop -> one PR to main. Running the full suite again on every PR
+  # to every branch doubled the bill for no extra signal.
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout GIT
+        uses: actions/checkout@v7
+
+      - name: Setup Java SDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '18'
+
+      - name: Gradle cache
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # Pushes write the cache, PR runs read it.
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+
+      - name: Inject google-services.json
+        run: |
+          cat <<'EOF' > app/google-services.json
+          ${{ secrets.GOOGLE_SERVICES_JSON }}
+          EOF
+
+      # `-PcomposeCompilerReports=true` is set for the whole invocation so the
+      # Compose compiler reports fall out of the same compile the other tasks
+      # use. Enabling it changes the Kotlin compiler arguments, so these compile
+      # outputs do not share build-cache entries with a plain `assembleDemo` -
+      # which is why apk.yml no longer runs on every push.
+      - name: Detekt, Lint, unit tests, Paparazzi, Compose reports
+        run: |
+          ./gradlew \
+            detekt \
+            lintRelease \
+            testDebugUnitTest \
+            verifyPaparazziDebug \
+            assembleDemo -PcomposeCompilerReports=true \
+            --continue
+
+      - name: Analyze the Compose stability report (Ivy)
+        run: ./gradlew :ci-actions:compose-stability:run
+
+      - name: Fail if lint errors are found
+        if: always()
+        run: |
+          if grep -q 'severity="Error"' build/reports/lint/lint.xml; then
+            echo "Lint errors found. Failing the build."
+            exit 1
+          fi
+
+      - name: Upload Detekt report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: detekt-report.html
+          path: build/reports/detekt/detekt.html
+
+      - name: Upload Lint Release report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: lint-release-report.html
+          path: build/reports/lint/lint.html
+
+      - name: Upload the Compose Stability report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: compose-stability-report
+          path: ci-actions/compose-stability/ivy-compose-stability-report.txt
