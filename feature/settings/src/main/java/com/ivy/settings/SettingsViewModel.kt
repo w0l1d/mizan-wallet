@@ -68,8 +68,6 @@ class SettingsViewModel @Inject constructor(
     private val hideCurrentBalance = mutableStateOf(false)
     private val hideIncome = mutableStateOf(false)
     private val treatTransfersAsIncomeExpense = mutableStateOf(false)
-    private val treatTransfersToExcludedAsExpense = mutableStateOf(false)
-    private val treatTransfersFromExcludedAsIncome = mutableStateOf(false)
     private val startDateOfMonth = mutableIntStateOf(1)
     private val progressState = mutableStateOf(false)
 
@@ -87,8 +85,6 @@ class SettingsViewModel @Inject constructor(
             showNotifications = getShowNotifications(),
             hideCurrentBalance = getHideCurrentBalance(),
             treatTransfersAsIncomeExpense = getTreatTransfersAsIncomeExpense(),
-            treatTransfersToExcludedAsExpense = getTreatTransfersToExcludedAsExpense(),
-            treatTransfersFromExcludedAsIncome = getTreatTransfersFromExcludedAsIncome(),
             startDateOfMonth = getStartDateOfMonth(),
             progressState = getProgressState(),
             hideIncome = getHideIncome(),
@@ -105,8 +101,6 @@ class SettingsViewModel @Inject constructor(
         initializeHideCurrentBalance()
         initializeHideIncome()
         initializeTransfersAsIncomeExpense()
-        initializeTransfersToExcludedAsExpense()
-        initializeTransfersFromExcludedAsIncome()
         initializeStartDateOfMonth()
     }
 
@@ -155,16 +149,6 @@ class SettingsViewModel @Inject constructor(
             sharedPrefs.getBoolean(SharedPrefs.TRANSFERS_AS_INCOME_EXPENSE, false)
     }
 
-    private fun initializeTransfersToExcludedAsExpense() {
-        treatTransfersToExcludedAsExpense.value =
-            sharedPrefs.getBoolean(SharedPrefs.TRANSFERS_TO_EXCLUDED_AS_EXPENSE, false)
-    }
-
-    private fun initializeTransfersFromExcludedAsIncome() {
-        treatTransfersFromExcludedAsIncome.value =
-            sharedPrefs.getBoolean(SharedPrefs.TRANSFERS_FROM_EXCLUDED_AS_INCOME, false)
-    }
-
     private suspend fun initializeStartDateOfMonth() {
         startDateOfMonth.intValue = startDayOfMonthAct(Unit)
     }
@@ -210,16 +194,6 @@ class SettingsViewModel @Inject constructor(
     }
 
     @Composable
-    private fun getTreatTransfersToExcludedAsExpense(): Boolean {
-        return treatTransfersToExcludedAsExpense.value
-    }
-
-    @Composable
-    private fun getTreatTransfersFromExcludedAsIncome(): Boolean {
-        return treatTransfersFromExcludedAsIncome.value
-    }
-
-    @Composable
     private fun getStartDateOfMonth(): String {
         return startDateOfMonth.intValue.toString()
     }
@@ -252,14 +226,6 @@ class SettingsViewModel @Inject constructor(
 
             is SettingsEvent.SetTransfersAsIncomeExpense -> setTransfersAsIncomeExpense(
                 event.treatTransfersAsIncomeExpense
-            )
-
-            is SettingsEvent.SetTransfersToExcludedAsExpense -> setTransfersToExcludedAsExpense(
-                event.enabled
-            )
-
-            is SettingsEvent.SetTransfersFromExcludedAsIncome -> setTransfersFromExcludedAsIncome(
-                event.enabled
             )
 
             is SettingsEvent.SetStartDateOfMonth -> setStartDateOfMonth(event.startDate)
@@ -392,28 +358,6 @@ class SettingsViewModel @Inject constructor(
             sharedPrefs.putBoolean(
                 SharedPrefs.TRANSFERS_AS_INCOME_EXPENSE,
                 treatTransfersAsIncomeExpense.value
-            )
-        }
-    }
-
-    private fun setTransfersToExcludedAsExpense(enabled: Boolean) {
-        treatTransfersToExcludedAsExpense.value = enabled
-
-        viewModelScope.launch {
-            sharedPrefs.putBoolean(
-                SharedPrefs.TRANSFERS_TO_EXCLUDED_AS_EXPENSE,
-                enabled
-            )
-        }
-    }
-
-    private fun setTransfersFromExcludedAsIncome(enabled: Boolean) {
-        treatTransfersFromExcludedAsIncome.value = enabled
-
-        viewModelScope.launch {
-            sharedPrefs.putBoolean(
-                SharedPrefs.TRANSFERS_FROM_EXCLUDED_AS_INCOME,
-                enabled
             )
         }
     }
