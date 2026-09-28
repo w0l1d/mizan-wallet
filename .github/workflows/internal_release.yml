@@ -10,7 +10,46 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # `secrets` is not readable from `jobs.<id>.if`, so the presence check cannot live
+  # on the job itself. This maps the Play credentials into an output that `if` CAN
+  # read, and costs a few seconds on the smallest possible runner.
+  play_credentials:
+    runs-on: ubuntu-24.04
+    outputs:
+      available: ${{ steps.probe.outputs.available }}
+
+    steps:
+      - name: Probe for the Google Play credentials
+        id: probe
+        env:
+          SIGNING_KEYSTORE: ${{ secrets.SIGNING_KEYSTORE }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          GOOGLE_PLAY_CONSOLE_JSON: ${{ secrets.GOOGLE_PLAY_CONSOLE_JSON }}
+        run: |
+          # All five are required: the bundle cannot be signed without the keystore
+          # and its three passwords, and cannot be uploaded without the service
+          # account. A partial set is as unreleasable as none at all.
+          MISSING=
+          for NAME in SIGNING_KEYSTORE SIGNING_KEY_ALIAS SIGNING_KEY_PASSWORD \
+                      SIGNING_STORE_PASSWORD GOOGLE_PLAY_CONSOLE_JSON; do
+            if [ -z "${!NAME}" ]; then
+              MISSING="$MISSING $NAME"
+            fi
+          done
+
+          if [ -n "$MISSING" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Google Play release skipped::The app is not on Google Play yet. Missing repository secret(s):$MISSING"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
+
   google_play_release:
+    needs: play_credentials
+    # Skipped, not failed, while the app is unpublished and the secrets are unset.
+    if: needs.play_credentials.outputs.available == 'true'
     runs-on: ubuntu-24.04
 
     steps:
