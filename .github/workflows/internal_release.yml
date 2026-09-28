@@ -197,6 +197,15 @@ jobs:
             echo "TAG_NAME=$EXPECTED_TAG" >> $GITHUB_ENV
           fi
 
+      # app/build.gradle.kts applies com.google.gms.google-services, and
+      # google-services.json is gitignored, so assembleDemo cannot run without
+      # this. Every other APK-building workflow already injects it.
+      - name: Inject google-services.json
+        run: |
+          cat <<'EOF' > app/google-services.json
+          ${{ secrets.GOOGLE_SERVICES_JSON }}
+          EOF
+
       - name: Build Demo APK
         run: ./gradlew assembleDemo
         env:
