@@ -12,11 +12,18 @@ on:
     branches:
       - main
     tags:
-      # `v*` only. A beta tag IS the beta version string, so the old `'*'` made
-      # every tag the publish job writes a candidate for re-triggering this
-      # workflow - an endless build/send loop, prevented today only by GitHub
-      # not firing workflows for pushes made with GITHUB_TOKEN. Don't rely on
-      # that: a tag pushed by a human would loop.
+      # A PRE-FILTER, not the pattern. Actions tag filters are globs, so the
+      # real pattern - v<YYYY>.<MM>.<DD>-<code>, range-checked - lives in
+      # scripts/release-tag.sh and is enforced by the "Validate tag shape" step
+      # below. `v*` is deliberately the looser of the two: a malformed release
+      # tag still starts a run, so it fails loudly in ~30s instead of being
+      # silently ignored, which is the worse outcome for a release pipeline.
+      #
+      # It must stay narrower than `'*'` though: a beta tag IS the beta version
+      # string, so `'*'` made every tag the publish job writes a candidate for
+      # re-triggering this workflow - an endless build/send loop, prevented
+      # only by GitHub not firing workflows for pushes made with GITHUB_TOKEN.
+      # Don't rely on that: a tag pushed by a human would loop.
       - 'v*'
   workflow_dispatch:
 
@@ -44,9 +51,11 @@ jobs:
       - name: Check if commit is already tagged
         id: check_tag
         run: |
-          # `v*` only: a beta tag written by the publish job names the same
-          # commit but must never suppress the release bump.
-          EXISTING_TAG=$(git tag --points-at HEAD --list 'v*')
+          # Exact release pattern, not `v*`: a beta tag written by the publish
+          # job names the same commit but must never suppress the release bump,
+          # and neither must one of upstream's 81 legacy `v4.x`/`v2.x-comet`
+          # tags or a human's scratch tag. See scripts/release-tag.sh.
+          EXISTING_TAG=$(./scripts/release-tag.sh --at)
           if [ -n "$EXISTING_TAG" ]; then
             echo "Commit already tagged: $EXISTING_TAG"
             echo "skip=true" >> $GITHUB_OUTPUT
@@ -106,6 +115,13 @@ jobs:
           # old explicit `git fetch --tags` step.
           fetch-depth: 0
 
+      # Before the ~13 minutes of JDK + Gradle + compile. The `on.push.tags`
+      # glob above lets through anything starting with `v`; this is where that
+      # is held to the actual pattern.
+      - name: Validate tag shape
+        if: startsWith(github.ref, 'refs/tags/')
+        run: ./scripts/release-tag.sh --check "${{ github.ref_name }}"
+
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
@@ -147,11 +163,13 @@ jobs:
 
           # Expected version comes from the SAME script that will tag the commit
           # after a successful build, so the tag and the APK cannot disagree.
-          # Release tags are `v*`; a beta tag from a previous publish of this
-          # commit must not be mistaken for one.
+          # Release tags match the pattern in scripts/release-tag.sh; a beta tag
+          # from a previous publish of this commit, or an upstream legacy tag,
+          # must not be mistaken for one.
           EXPECTED_VERSION_NAME=$(./scripts/tag-build.sh --print)
+          RELEASE_TAGS=$(./scripts/release-tag.sh --at)
 
-          if [ -n "$(git tag --points-at HEAD --list 'v*')" ]; then
+          if [ -n "$RELEASE_TAGS" ]; then
             CHANNEL="release"
             EXPECTED_VERSION_CODE="$BASE_VERSION_CODE"
 
@@ -159,14 +177,14 @@ jobs:
             # nothing else checks that its NAME agrees with the version the APK
             # actually carries. Without this, pushing `v9.9.9` onto any commit
             # ships that commit's toml version under a tag that lies about it.
-            EXPECTED_TAG="v${EXPECTED_VERSION_NAME}-${BASE_VERSION_CODE}"
-            if ! git tag --points-at HEAD --list 'v*' | grep -qx "$EXPECTED_TAG"; then
-              echo "::error::release tag mismatch! This commit carries $(git tag --points-at HEAD --list 'v*' | tr '\n' ' ')but a build of it is version $EXPECTED_VERSION_NAME ($BASE_VERSION_CODE), which must be tagged $EXPECTED_TAG."
+            EXPECTED_TAG=$(./scripts/release-tag.sh --expected)
+            if ! echo "$RELEASE_TAGS" | grep -qx "$EXPECTED_TAG"; then
+              echo "::error::release tag mismatch! This commit carries $(echo "$RELEASE_TAGS" | tr '\n' ' ')but a build of it is version $EXPECTED_VERSION_NAME ($BASE_VERSION_CODE), which must be tagged $EXPECTED_TAG."
               exit 1
             fi
           else
             CHANNEL="beta"
-            LAST_TAG=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+            LAST_TAG=$(./scripts/release-tag.sh --last)
             if [ -n "$LAST_TAG" ]; then
               COMMITS_SINCE=$(git rev-list --count "$LAST_TAG"..HEAD)
             else
@@ -268,7 +286,7 @@ jobs:
           # here unless the exact commit it was built from is tagged on the
           # remote. A beta tag IS the version string; a release tag is `v*`.
           if [ "$CHANNEL" = "release" ]; then
-            TAG_NAME=$(git tag --points-at HEAD --list 'v*' | head -1)
+            TAG_NAME=$(./scripts/release-tag.sh --at | head -1)
           else
             TAG_NAME="$VERSION_NAME"
           fi
@@ -336,7 +354,7 @@ jobs:
           # Only a release tag has a GitHub release page behind it; a beta tag
           # is shown as the checkout target instead.
           TAG_INFO=""
-          RELEASE_TAG=$(git tag --points-at HEAD --list 'v*' | head -1)
+          RELEASE_TAG=$(./scripts/release-tag.sh --at | head -1)
           if [ -n "$RELEASE_TAG" ]; then
             RELEASE_URL="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${RELEASE_TAG}"
             TAG_INFO=$'\n📋 Release: '"$RELEASE_URL"
