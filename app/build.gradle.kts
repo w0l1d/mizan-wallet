@@ -1,3 +1,5 @@
+import io.sentry.android.gradle.extensions.InstrumentationFeature
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -9,6 +11,7 @@ plugins {
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
     id("io.gitlab.arturbosch.detekt")
+    alias(libs.plugins.sentry)
 }
 
 android {
@@ -261,6 +264,10 @@ dependencies {
     ksp(libs.room.compiler)
 
     implementation(libs.timber)
+    implementation(platform(libs.sentry.bom))
+    implementation(libs.sentry.android)
+    implementation(libs.sentry.android.timber)
+    implementation(libs.sentry.compose.android)
     implementation(libs.keval)
     implementation(libs.bundles.opencsv)
     implementation(libs.androidx.work)
@@ -270,4 +277,31 @@ dependencies {
     testImplementation(libs.androidx.work.testing)
 
     lintChecks(libs.slack.lint.compose)
+}
+
+sentry {
+    org = "w0l1d"
+    projectName = "mizan-android"
+    authToken = System.getenv("SENTRY_AUTH_TOKEN")
+
+    // Bytecode instrumentation - no source changes needed. OKHTTP also covers Ktor,
+    // which runs on the OkHttp engine here.
+    tracingInstrumentation {
+        enabled = true
+        features = setOf(
+            InstrumentationFeature.DATABASE,
+            InstrumentationFeature.FILE_IO,
+            InstrumentationFeature.OKHTTP,
+            InstrumentationFeature.COMPOSE,
+        )
+    }
+
+    // R8 mangles `release` and `demo`; without the mapping file Sentry stack traces are
+    // unreadable. Only attempt the upload when CI (or the developer) supplied a token,
+    // so a plain local release build still succeeds.
+    includeProguardMapping = true
+    autoUploadProguardMapping = System.getenv("SENTRY_AUTH_TOKEN") != null
+
+    // Source context needs the same token; it ships snippets of source to Sentry.
+    includeSourceContext = false
 }

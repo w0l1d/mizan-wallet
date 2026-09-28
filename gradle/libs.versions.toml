@@ -22,6 +22,13 @@ version-code = "206"
 jvm-target = "17"
 
 
+# Observability
+sentry = "8.58.0"
+# Pinned to the 5.x line: every 6.x release fails to create
+# uploadSentryProguardMappings* on Gradle 8.8 (NoSuchMethod
+# Exec.setIgnoreExitValue). Revisit when the wrapper moves to Gradle 9.
+sentry-gradle-plugin = "5.12.2"
+
 # Linters
 detekt = "1.23.6" # https://detekt.dev/docs/gettingstarted/gradle/
 
@@ -126,6 +133,12 @@ material = { module = "com.google.android.material:material", version = "1.12.0"
 
 # Logging
 timber = { module = "com.jakewharton.timber:timber", version = "5.0.1" }
+
+# Sentry - versions of the individual artifacts come from the BOM
+sentry-bom = { module = "io.sentry:sentry-bom", version.ref = "sentry" }
+sentry-android = { module = "io.sentry:sentry-android" }
+sentry-android-timber = { module = "io.sentry:sentry-android-timber" }
+sentry-compose-android = { module = "io.sentry:sentry-compose-android" }
 
 # Legacy
 keval = { module = "com.notkamui.libs:keval", version = "1.1.1" }
@@ -236,3 +249,4 @@ gradleWrapperUpgrade = { id = "org.gradle.wrapper-upgrade", version = "0.11.4" }
 koverPlugin = { id = "org.jetbrains.kotlinx.kover", version = "0.8.3" }
 dependencyUpdates = { id = "com.github.ben-manes.versions", version = "0.51.0" }
 owaspDependencyCheck = { id = "org.owasp.dependencycheck", version = "10.0.4" }
+sentry = { id = "io.sentry.android.gradle", version.ref = "sentry-gradle-plugin" }

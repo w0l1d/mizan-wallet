@@ -83,6 +83,8 @@ jobs:
       - name: Build production App Bundle
         run: bundle exec fastlane production_build
         env:
+          # Uploads the R8 mapping so production crashes deobfuscate in Sentry.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
@@ -158,6 +160,8 @@ jobs:
 
       - name: Build Demo APK
         run: ./gradlew assembleDemo
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: Upload APK to Github Actions
         uses: actions/upload-artifact@v7

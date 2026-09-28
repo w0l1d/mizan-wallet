@@ -143,6 +143,11 @@ jobs:
 
       - name: Build Demo APK
         run: ./gradlew assembleDemo
+        env:
+          # R8 shrinks `demo`; without the mapping upload Sentry stack traces
+          # from this build are unreadable. Absent, the build still succeeds -
+          # see the `sentry {}` block in app/build.gradle.kts.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: Validate APK version and resolve release channel
         id: validate

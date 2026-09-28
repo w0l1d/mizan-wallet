@@ -17,6 +17,9 @@ plugins {
     // Run with:
     // ./gradlew dependencyCheckAnalyze
     alias(libs.plugins.owaspDependencyCheck)
+
+    // Applied in :app - declared here so the plugin lands on the build classpath once.
+    alias(libs.plugins.sentry) apply false
 }
 
 subprojects {
