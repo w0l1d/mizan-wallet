@@ -1,13 +1,10 @@
 name: Integration tests (androidTest)
 
+# ~20 minutes a run, emulator boot dominating, which made this the single most
+# expensive thing on every push. Run it deliberately instead: before a release,
+# or when touching androidTest. STATUS.md also still lists 2a34c826's keystore
+# cache fix as unverified on a green run.
 on:
-  push:
-    branches:
-      - main
-      - develop
-  pull_request:
-  # Manual trigger exists so the Gradle cache can be seeded on main without
-  # waiting for a merge -- see cache-read-only below.
   workflow_dispatch:
 
 concurrency:

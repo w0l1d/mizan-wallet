@@ -1,13 +1,16 @@
 name: APK
 
+# `develop` is deliberately absent: building and validating a beta on every
+# develop push cost ~15 minutes a time and duplicated the `assembleDemo` that
+# checks.yml already runs, and publish_apk never sent those builds anyway.
+# Dispatch this workflow on develop when you want a beta in Telegram.
+#
+# `main` must stay - the auto_tag job below is gated on a push to main, and it is
+# what tags a release. Merges to main are rare, so this costs little.
 on:
   push:
     branches:
-      # `develop` builds and validates a beta on every push, but does NOT send
-      # it: publish_apk's `if` below deliberately omits develop. Dispatch this
-      # workflow on develop when you actually want the APK in Telegram.
       - main
-      - develop
     tags:
       # `v*` only. A beta tag IS the beta version string, so the old `'*'` made
       # every tag the publish job writes a candidate for re-triggering this
@@ -15,7 +18,6 @@ on:
       # not firing workflows for pushes made with GITHUB_TOKEN. Don't rely on
       # that: a tag pushed by a human would loop.
       - 'v*'
-  pull_request:
   workflow_dispatch:
 
 # cancel-in-progress is scoped to pull_request on purpose: the auto_tag job below

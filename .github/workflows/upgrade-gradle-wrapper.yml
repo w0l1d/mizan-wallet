@@ -5,7 +5,7 @@ on:
   schedule:
     # Weekly, not daily: one developer does not need a wrapper-upgrade PR
     # every morning, and each run is a full Gradle bootstrap.
-    - cron: '0 8 * * 1'
+    - cron: '0 8 1 * *'  # 1st of the month at 08:00 UTC
 
 jobs:
   upgrade-gradle-wrapper:

@@ -2,7 +2,7 @@ name: Dependency Audit
 
 on:
   schedule:
-    - cron: '0 8 * * 1'  # Every Monday at 08:00 UTC
+    - cron: '0 8 1 * *'  # 1st of the month at 08:00 UTC
   workflow_dispatch:
 
 jobs:

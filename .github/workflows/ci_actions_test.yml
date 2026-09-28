@@ -1,11 +1,21 @@
 name: CI Actions tests
 
+# These test the CI tooling itself, so they only need to run when that tooling
+# changes - not on every app commit.
 on:
   push:
     branches:
       - main
       - develop
+    paths:
+      - 'ci-actions/**'
+      - '.github/workflows/ci_actions_test.yml'
   pull_request:
+    branches:
+      - main
+    paths:
+      - 'ci-actions/**'
+      - '.github/workflows/ci_actions_test.yml'
   # Manual trigger exists so the Gradle cache can be seeded on main without
   # waiting for a merge -- see cache-read-only below.
   workflow_dispatch:
