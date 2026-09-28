@@ -86,6 +86,24 @@ class IvyFeatures @Inject constructor() : Features {
         defaultValue = false
     )
 
+    // Key strings match the SharedPrefs keys these used to live under, so the
+    // one-time migration in ExcludedTransferPrefsMigration reads obviously.
+    override val transfersToExcludedAsExpense = BoolFeature(
+        key = "transfers_to_excluded_as_expense",
+        group = FeatureGroup.Account,
+        name = "Transfers to excluded as expense",
+        description = "Count money transferred to excluded accounts as expenses in monthly totals",
+        defaultValue = false
+    )
+
+    override val transfersFromExcludedAsIncome = BoolFeature(
+        key = "transfers_from_excluded_as_income",
+        group = FeatureGroup.Account,
+        name = "Transfers from excluded as income",
+        description = "Count money received from excluded accounts as income in monthly totals",
+        defaultValue = false
+    )
+
     override val allFeatures: List<BoolFeature>
         get() = listOf(
             sortCategoriesAscending,
@@ -96,7 +114,9 @@ class IvyFeatures @Inject constructor() : Features {
             hideTotalBalance,
             standardKeypadLayout,
             showAccountColorsInTransactions,
-            showExcludedAccountsBalance
+            showExcludedAccountsBalance,
+            transfersToExcludedAsExpense,
+            transfersFromExcludedAsIncome
             /* will be uncommented when this functionality
              * will be available across the application in up-coming PRs
             showDecimalNumber

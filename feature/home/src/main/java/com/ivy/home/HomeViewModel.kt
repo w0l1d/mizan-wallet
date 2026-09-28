@@ -1,5 +1,6 @@
 package com.ivy.home
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -7,7 +8,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewModelScope
-import com.ivy.base.legacy.SharedPrefs
 import com.ivy.base.legacy.Theme
 import com.ivy.base.legacy.Transaction
 import com.ivy.base.legacy.TransactionHistoryItem
@@ -58,6 +58,7 @@ import com.ivy.wallet.domain.deprecated.logic.PlannedPaymentsLogic
 import com.ivy.wallet.domain.pure.data.ClosedTimeRange
 import com.ivy.wallet.domain.pure.data.IncomeExpensePair
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -90,11 +91,12 @@ class HomeViewModel @Inject constructor(
     private val updateAccCacheAct: UpdateAccCacheAct,
     private val updateCategoriesCacheAct: UpdateCategoriesCacheAct,
     private val syncExchangeRatesUseCase: SyncExchangeRatesUseCase,
-    private val sharedPrefs: SharedPrefs,
     private val transactionMapper: TransactionMapper,
     private val timeProvider: TimeProvider,
     private val timeConverter: TimeConverter,
-    private val features: Features
+    private val features: Features,
+    @ApplicationContext
+    private val context: Context,
 ) : ComposeViewModel<HomeState, HomeEvent>() {
     private var currentTheme by mutableStateOf(Theme.AUTO)
     private var name by mutableStateOf("")
@@ -327,14 +329,10 @@ class HomeViewModel @Inject constructor(
                 baseCurrency = settings.baseCurrency,
                 accounts = accounts,
                 range = timeRange,
-                transfersToExcludedAsExpense = sharedPrefs.getBoolean(
-                    SharedPrefs.TRANSFERS_TO_EXCLUDED_AS_EXPENSE,
-                    false
-                ),
-                transfersFromExcludedAsIncome = sharedPrefs.getBoolean(
-                    SharedPrefs.TRANSFERS_FROM_EXCLUDED_AS_INCOME,
-                    false
-                ),
+                transfersToExcludedAsExpense =
+                features.transfersToExcludedAsExpense.isEnabled(context),
+                transfersFromExcludedAsIncome =
+                features.transfersFromExcludedAsIncome.isEnabled(context),
             )
         )
 
