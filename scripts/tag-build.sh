@@ -37,6 +37,10 @@ done
 
 die() { echo "error: $*" >&2; exit 1; }
 
+# The release-tag pattern is shared with .github/workflows/apk.yml; both ask
+# release-tag.sh rather than each globbing for `v*`.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # --- refuse anything that cannot be named by a tag -------------------------
 # --print is read-only, so it stays useful on a dirty tree.
 
@@ -50,13 +54,14 @@ if [ -z "$VERSION" ]; then
   SHORT_SHA=$(git rev-parse --short HEAD)
 
   # Release tags are `v<date>-<code>`; beta tags are the beta version string.
-  # Matching on `v*` keeps a beta tag from being mistaken for a release.
-  if [ -n "$(git tag --points-at HEAD --list 'v*')" ]; then
+  # The pattern lives in release-tag.sh - `v*` would also match a beta's
+  # neighbours, upstream's legacy v4.x/v2.x tags, and any scratch tag.
+  if [ -n "$("$SCRIPT_DIR"/release-tag.sh --at)" ]; then
     IS_RELEASE=true
     VERSION=$(grep 'version-name =' gradle/libs.versions.toml | awk -F'=' '{print $2}' | tr -d ' "')
   fi
 
-  LAST_RELEASE_TAG=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+  LAST_RELEASE_TAG=$("$SCRIPT_DIR"/release-tag.sh --last)
   if [ -n "$LAST_RELEASE_TAG" ]; then
     COMMITS_SINCE=$(git rev-list --count "$LAST_RELEASE_TAG..HEAD")
   else
@@ -81,7 +86,7 @@ esac
 # --- create the tag --------------------------------------------------------
 
 if [ "$IS_RELEASE" = true ]; then
-  echo "Commit is a RELEASE ($(git tag --points-at HEAD --list 'v*' | head -1)),"
+  echo "Commit is a RELEASE ($("$SCRIPT_DIR"/release-tag.sh --at | head -1)),"
   echo "version $VERSION - already tagged by the release workflow. Nothing to do."
   exit 0
 fi
