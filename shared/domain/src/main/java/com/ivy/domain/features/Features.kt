@@ -11,6 +11,8 @@ interface Features {
     val standardKeypadLayout: BoolFeature
     val showAccountColorsInTransactions: BoolFeature
     val showExcludedAccountsBalance: BoolFeature
+    val transfersToExcludedAsExpense: BoolFeature
+    val transfersFromExcludedAsIncome: BoolFeature
 
     val allFeatures: List<BoolFeature>
 }
