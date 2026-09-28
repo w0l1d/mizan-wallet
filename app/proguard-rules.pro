@@ -21,3 +21,10 @@
 # R8 full mode strips generic signatures from return types if not kept.
 -if interface * { @retrofit2.http.* public *** *(...); }
 -keep,allowoptimization,allowshrinking,allowobfuscation class <3>
+
+# The Sentry SDK reaches for API 35 classes (app-start metrics, Perfetto
+# profiling) behind runtime SDK_INT checks, but compileSdk is 34, so R8 cannot
+# resolve them. Drop these when compileSdk reaches 35.
+-dontwarn android.app.ApplicationStartInfo
+-dontwarn android.os.ProfilingManager
+-dontwarn android.os.ProfilingResult

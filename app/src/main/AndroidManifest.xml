@@ -33,6 +33,12 @@
         android:usesCleartextTraffic="true"
         tools:ignore="LockedOrientationActivity">
 
+        <!-- The SDK is configured by hand in IvyAndroidApp.onCreate; leaving auto-init on
+             makes SentryInitProvider run first and crash for want of a DSN in the manifest. -->
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false" />
+
         <activity
             android:name=".RootActivity"
             android:exported="true"
