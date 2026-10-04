@@ -1,8 +1,9 @@
 package com.ivy.data.backup.local
 
 import arrow.core.Either
-import arrow.core.left
-import arrow.core.right
+import arrow.core.raise.either
+import arrow.core.raise.ensure
+import arrow.core.raise.ensureNotNull
 import com.ivy.data.model.backup.BackupError
 import com.ivy.data.model.backup.SnapshotOrigin
 import com.ivy.data.model.backup.SnapshotSummary
@@ -70,26 +71,33 @@ object SnapshotManifestCodec {
      * [name] is the snapshot's storage name, carried only so a failure can say which object
      * could not be read.
      */
-    fun decode(name: String, raw: String): Either<BackupError.SnapshotUnreadable, SnapshotManifest> {
+    fun decode(
+        name: String,
+        raw: String,
+    ): Either<BackupError.SnapshotUnreadable, SnapshotManifest> = either {
         val parsed = runCatching { json.decodeFromString(ManifestJson.serializer(), raw) }
-            .getOrElse { return unreadable(name, "manifest.json could not be parsed: ${it.message}") }
+            .getOrElse { raise(unreadable(name, "manifest.json could not be parsed: ${it.message}")) }
 
-        if (parsed.formatVersion != SnapshotManifest.FORMAT_VERSION) {
-            return unreadable(
+        ensure(parsed.formatVersion == SnapshotManifest.FORMAT_VERSION) {
+            unreadable(
                 name,
-                "snapshot format version ${parsed.formatVersion} is not recognised by this version " +
-                    "of the app (it reads version ${SnapshotManifest.FORMAT_VERSION})",
+                "snapshot format version ${parsed.formatVersion} is not recognised by this " +
+                    "version of the app (it reads version ${SnapshotManifest.FORMAT_VERSION})",
             )
         }
 
-        val origin = ORIGINS[parsed.origin]
-            ?: return unreadable(name, "unrecognised snapshot origin '${parsed.origin}'")
+        val origin = ensureNotNull(ORIGINS[parsed.origin]) {
+            unreadable(name, "unrecognised snapshot origin '${parsed.origin}'")
+        }
 
-        val capturedAt = parsed.capturedAt.toInstantOrNull()
-            ?: return unreadable(name, "capturedAt '${parsed.capturedAt}' is not a valid instant")
+        val capturedAt = ensureNotNull(parsed.capturedAt.toInstantOrNull()) {
+            unreadable(name, "capturedAt '${parsed.capturedAt}' is not a valid instant")
+        }
 
-        val newestTransactionAt = parsed.summary.newestTransactionAt?.let {
-            it.toInstantOrNull() ?: return unreadable(name, "newestTransactionAt '$it' is not a valid instant")
+        val newestTransactionAt = parsed.summary.newestTransactionAt?.let { value ->
+            ensureNotNull(value.toInstantOrNull()) {
+                unreadable(name, "newestTransactionAt '$value' is not a valid instant")
+            }
         }
 
         val summary = runCatching {
@@ -100,9 +108,9 @@ object SnapshotManifestCodec {
                 budgetCount = parsed.summary.budgetCount,
                 newestTransactionAt = newestTransactionAt,
             )
-        }.getOrElse { return unreadable(name, "summary is not valid: ${it.message}") }
+        }.getOrElse { raise(unreadable(name, "summary is not valid: ${it.message}")) }
 
-        return SnapshotManifest(
+        SnapshotManifest(
             capturedAt = capturedAt,
             origin = origin,
             appVersion = parsed.appVersion,
@@ -110,7 +118,7 @@ object SnapshotManifestCodec {
             dataEntry = parsed.dataEntry,
             dataSha256 = parsed.dataSha256,
             summary = summary,
-        ).right()
+        )
     }
 
     private val ORIGINS = mapOf(
@@ -119,11 +127,12 @@ object SnapshotManifestCodec {
         "safety" to SnapshotOrigin.Safety,
     )
 
-    private fun unreadable(name: String, reason: String) =
-        BackupError.SnapshotUnreadable(name, reason).left()
+    private fun unreadable(name: String, reason: String): BackupError.SnapshotUnreadable =
+        BackupError.SnapshotUnreadable(name, reason)
 
     private fun String.toInstantOrNull(): Instant? = runCatching { Instant.parse(this) }.getOrNull()
 
+    @Suppress("DataClassDefaultValues") // a default is how a missing field decodes
     @Serializable
     private data class ManifestJson(
         @SerialName("formatVersion") val formatVersion: Int,
@@ -136,6 +145,7 @@ object SnapshotManifestCodec {
         @SerialName("summary") val summary: SummaryJson = SummaryJson(),
     )
 
+    @Suppress("DataClassDefaultValues") // a default is how a missing field decodes
     @Serializable
     private data class SummaryJson(
         @SerialName("transactionCount") val transactionCount: Int = 0,

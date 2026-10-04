@@ -25,6 +25,10 @@ object SnapshotNaming {
     private const val SEPARATOR = "--"
     private const val MAX_SEQUENCE = 99
 
+    private const val GROUP_TIMESTAMP = 1
+    private const val GROUP_DEVICE = 3
+    private const val GROUP_ORIGIN = 4
+
     private val TIMESTAMP: DateTimeFormatter =
         DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC)
 
@@ -63,17 +67,17 @@ object SnapshotNaming {
     }
 
     fun parse(name: String): Parsed? {
-        val match = PATTERN.matchEntire(name) ?: return null
-        val (timestamp, _, device, originCode) = match.destructured
+        val groups = PATTERN.matchEntire(name)?.groupValues ?: return null
         val capturedAt = runCatching {
-            Instant.from(TIMESTAMP.parse(timestamp))
-        }.getOrNull() ?: return null
+            Instant.from(TIMESTAMP.parse(groups[GROUP_TIMESTAMP]))
+        }.getOrNull()
+        val origin = originOf(groups[GROUP_ORIGIN])
 
-        return Parsed(
-            capturedAt = capturedAt,
-            device = device,
-            origin = originOf(originCode) ?: return null,
-        )
+        return if (capturedAt == null || origin == null) {
+            null
+        } else {
+            Parsed(capturedAt = capturedAt, device = groups[GROUP_DEVICE], origin = origin)
+        }
     }
 
     fun codeOf(origin: SnapshotOrigin): String = when (origin) {
