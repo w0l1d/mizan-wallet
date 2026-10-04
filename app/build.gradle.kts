@@ -211,6 +211,7 @@ android {
 
 dependencies {
     implementation(projects.feature.attributions)
+    implementation(projects.feature.backup)
     implementation(projects.feature.balance)
     implementation(projects.feature.budgets)
     implementation(projects.feature.categories)
