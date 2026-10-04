@@ -116,3 +116,35 @@ class BackupDataUseCaseTest {
         backupTestCase("450-150")
     }
 }
+class BackupArchiveEntriesTest {
+
+    @Test
+    fun `accepts a legacy single-entry archive`() {
+        BackupArchiveEntries.selectDataEntry(listOf("ivy-wallet-backup.json")) shouldBe "ivy-wallet-backup.json"
+    }
+
+    @Test
+    fun `accepts a two-entry archive containing manifest_json`() {
+        BackupArchiveEntries.selectDataEntry(
+            listOf("manifest.json", "ivy-wallet-backup.json")
+        ) shouldBe "ivy-wallet-backup.json"
+    }
+
+    @Test
+    fun `ignores non-json entries as it did before`() {
+        BackupArchiveEntries.selectDataEntry(
+            listOf("ivy-wallet-backup.json", "README.txt")
+        ) shouldBe "ivy-wallet-backup.json"
+    }
+
+    @Test
+    fun `still refuses an archive with two data documents`() {
+        BackupArchiveEntries.selectDataEntry(listOf("a.json", "b.json")) shouldBe null
+    }
+
+    @Test
+    fun `still refuses an archive with no data document`() {
+        BackupArchiveEntries.selectDataEntry(listOf("manifest.json")) shouldBe null
+        BackupArchiveEntries.selectDataEntry(emptyList()) shouldBe null
+    }
+}
