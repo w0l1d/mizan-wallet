@@ -259,6 +259,16 @@ private fun BoxWithConstraintsScope.UI(
 
             Spacer(Modifier.height(12.dp))
 
+            SettingsDefaultButton(
+                icon = R.drawable.ic_vue_security_shield,
+                text = "Automatic Backup",
+                iconPadding = 8.dp
+            ) {
+                nav.navigateTo(com.ivy.navigation.BackupScreen)
+            }
+
+            Spacer(Modifier.height(12.dp))
+
             SettingsPrimaryButton(
                 icon = R.drawable.ic_export_csv,
                 text = stringResource(R.string.import_data),
