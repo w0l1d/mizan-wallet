@@ -175,6 +175,29 @@ class RestoreSnapshotUseCaseTest {
         accountDao.findAll() shouldBe emptyList()
     }
 
+    @Test
+    fun `a second restore cannot start while one is running`() = runBlocking<Unit> {
+        val snapshot = put(data(accounts = listOf(account)))
+        var reentrant: Either<BackupError, SnapshotRef>? = null
+        // Re-entering from inside the first restore is the only way to provoke the guard without
+        // racing two threads and hoping the race lands the right way round.
+        var reentered = false
+        coEvery { captureSnapshot(SnapshotOrigin.Safety) } coAnswers {
+            if (!reentered) {
+                reentered = true
+                reentrant = useCase(snapshot)
+            }
+            Either.Right(safetyRef())
+        }
+
+        useCase(snapshot).shouldBeRight()
+
+        val error = reentrant!!.shouldBeLeft()
+        (error is BackupError.RestoreFailed) shouldBe true
+        // Rejected, not queued: the wallet was written exactly once.
+        dbTransaction.committed shouldBe 1
+    }
+
     private fun restoreWith(walletWriter: WalletDataWriter) = RestoreSnapshotUseCase(
         storage = storage,
         capture = captureSnapshot,
@@ -189,8 +212,14 @@ class RestoreSnapshotUseCaseTest {
         this as? BackupError.SnapshotUnreadable ?: error("expected SnapshotUnreadable but got $this")
 
     private fun safetyCaptureSucceeds(): SnapshotRef {
+        val ref = safetyRef()
+        coEvery { captureSnapshot(SnapshotOrigin.Safety) } returns Either.Right(ref)
+        return ref
+    }
+
+    private fun safetyRef(): SnapshotRef {
         val name = SnapshotNaming.build(time.now, device = "pixel", origin = SnapshotOrigin.Safety)
-        val ref = SnapshotRef(
+        return SnapshotRef(
             name = name,
             uri = "fake://$name",
             capturedAt = time.now,
@@ -198,8 +227,6 @@ class RestoreSnapshotUseCaseTest {
             summary = SnapshotSummary.Empty,
             sizeBytes = 1L,
         )
-        coEvery { captureSnapshot(SnapshotOrigin.Safety) } returns Either.Right(ref)
-        return ref
     }
 
     private fun data(
