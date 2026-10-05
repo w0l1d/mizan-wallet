@@ -41,7 +41,7 @@ class RestoreSnapshotUseCase @Inject constructor(
     private val transaction: DatabaseTransaction,
     private val writer: WalletDataWriter,
     private val environment: BackupEnvironment,
-    private val json: Json,
+    @javax.inject.Named(com.ivy.data.di.BackupJsonModule.BACKUP_JSON) private val json: Json,
     private val dispatchers: DispatchersProvider,
 ) {
     private val inProgress = Mutex()

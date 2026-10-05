@@ -33,6 +33,8 @@ class BackupScreensScreenshotTest(
                     folderName = "IvyBackups",
                     snapshots = persistentListOf(manualRef, scheduledRef, safetyRef),
                     unreadableCount = 1,
+                    statusMessage = "Last backup: 2h ago",
+                    statusIsWarning = false,
                 ),
             )
         }

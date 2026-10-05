@@ -25,6 +25,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.time.Duration
+import java.time.Instant
 import javax.inject.Inject
 
 @Stable
@@ -141,16 +143,18 @@ class BackupViewModel @Inject constructor(
 
     private fun statusText(status: BackupStatus): Pair<String?, Boolean> = when (status) {
         is BackupStatus.Healthy -> formatAge(status.lastSnapshotAt) to false
-        is BackupStatus.Failing -> (status.lastAttemptError
-            ?: "Last backup attempt failed.") to true
+        is BackupStatus.Failing -> {
+            val msg = status.lastAttemptError ?: "Last backup attempt failed."
+            msg to true
+        }
         BackupStatus.NeverBackedUp -> "No backup yet." to true
         BackupStatus.Unreachable -> "Folder unreachable." to true
         BackupStatus.NotConfigured -> null to false
     }
 
     @Suppress("MagicNumber")
-    private fun formatAge(snapshotAt: java.time.Instant): String {
-        val age = java.time.Duration.between(snapshotAt, timeProvider.utcNow())
+    private fun formatAge(snapshotAt: Instant): String {
+        val age = Duration.between(snapshotAt, timeProvider.utcNow())
         val hours = age.toHours()
         return when {
             hours < 1 -> "Last backup: less than an hour ago"
