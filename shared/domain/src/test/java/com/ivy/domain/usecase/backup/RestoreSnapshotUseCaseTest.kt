@@ -43,7 +43,10 @@ import java.util.zip.ZipOutputStream
 
 class RestoreSnapshotUseCaseTest {
 
-    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
 
     private val storage = FakeBackupStorage(describe = ::describeByManifest)
     private val transactionDao = FakeTransactionDao()
@@ -65,7 +68,7 @@ class RestoreSnapshotUseCaseTest {
         tagAssociationDao = FakeTagAssociationDao(),
     )
 
-    private val capture = mockk<CaptureSnapshotUseCase>()
+    private val captureSnapshot = mockk<CaptureSnapshotUseCase>()
 
     private val useCase = restoreWith(writer)
 
@@ -148,7 +151,7 @@ class RestoreSnapshotUseCaseTest {
 
     @Test
     fun `a restore that cannot take a safety snapshot does not happen at all`() = runBlocking<Unit> {
-        coEvery { capture(SnapshotOrigin.Safety) } returns Either.Left(BackupError.OutOfSpace)
+        coEvery { captureSnapshot(SnapshotOrigin.Safety) } returns Either.Left(BackupError.OutOfSpace)
         val snapshot = put(data(accounts = listOf(account)))
 
         useCase(snapshot).shouldBeLeft() shouldBe BackupError.OutOfSpace
@@ -174,7 +177,7 @@ class RestoreSnapshotUseCaseTest {
 
     private fun restoreWith(walletWriter: WalletDataWriter) = RestoreSnapshotUseCase(
         storage = storage,
-        capture = capture,
+        capture = captureSnapshot,
         transaction = dbTransaction,
         writer = walletWriter,
         environment = TestBackupEnvironment(dataSchemaVersion = 7),
@@ -195,7 +198,7 @@ class RestoreSnapshotUseCaseTest {
             summary = SnapshotSummary.Empty,
             sizeBytes = 1L,
         )
-        coEvery { capture(SnapshotOrigin.Safety) } returns Either.Right(ref)
+        coEvery { captureSnapshot(SnapshotOrigin.Safety) } returns Either.Right(ref)
         return ref
     }
 

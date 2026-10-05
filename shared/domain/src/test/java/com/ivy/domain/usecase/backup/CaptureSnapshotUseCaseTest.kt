@@ -180,5 +180,4 @@ class CaptureSnapshotUseCaseTest {
         )
         return out.toByteArray()
     }
-
 }

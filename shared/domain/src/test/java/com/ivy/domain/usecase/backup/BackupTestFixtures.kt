@@ -31,15 +31,18 @@ internal class TestBackupEnvironment(
  * so a test sees the summary the snapshot actually carries, not one derived from its name.
  */
 internal fun describeByManifest(name: String, bytes: ByteArray): SnapshotRef? {
-    val parsed = SnapshotNaming.parse(name) ?: return null
-    val manifest = SnapshotArchive.readManifest(name, ByteArrayInputStream(bytes)).getOrNull()
-        ?: return null
-    return SnapshotRef(
-        name = name,
-        uri = "fake://$name",
-        capturedAt = manifest.capturedAt,
-        origin = parsed.origin,
-        summary = manifest.summary,
-        sizeBytes = bytes.size.toLong(),
-    )
+    val parsed = SnapshotNaming.parse(name)
+    val manifest = parsed?.let {
+        SnapshotArchive.readManifest(name, ByteArrayInputStream(bytes)).getOrNull()
+    }
+    return manifest?.let {
+        SnapshotRef(
+            name = name,
+            uri = "fake://$name",
+            capturedAt = it.capturedAt,
+            origin = parsed.origin,
+            summary = it.summary,
+            sizeBytes = bytes.size.toLong(),
+        )
+    }
 }
