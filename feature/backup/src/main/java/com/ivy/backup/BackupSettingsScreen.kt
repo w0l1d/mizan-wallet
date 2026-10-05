@@ -173,6 +173,18 @@ private fun ReadyContent(
                 text = "Folder: ${state.folderName}",
                 style = MaterialTheme.typography.bodySmall,
             )
+            if (state.statusMessage != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = state.statusMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (state.statusIsWarning) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = onBackUpNow) { Text("Back up now") }
@@ -277,5 +289,55 @@ private fun formatBytes(bytes: Long): String {
         mb >= 1.0 -> "%.1f MB".format(mb)
         kb >= 1.0 -> "%.0f KB".format(kb)
         else -> "$bytes B"
+    }
+}
+
+@Composable
+internal fun BackupSettingsContent(
+    state: BackupViewState,
+    modifier: Modifier = Modifier,
+    pickFolder: () -> Unit = {},
+    onBackUpNow: () -> Unit = {},
+    onSelectSnapshot: (SnapshotRef) -> Unit = {},
+    onRetry: () -> Unit = {},
+    onClose: () -> Unit = {},
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp),
+    ) {
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Backup",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            OutlinedButton(onClick = onClose) {
+                Text("Close")
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        when (state) {
+            BackupViewState.NotConfigured -> NotConfiguredContent(pickFolder = pickFolder)
+            BackupViewState.Loading -> LoadingContent()
+            is BackupViewState.Ready -> ReadyContent(
+                state = state,
+                onBackUpNow = onBackUpNow,
+                onSelectSnapshot = onSelectSnapshot,
+                pickFolder = pickFolder,
+            )
+            is BackupViewState.Failed -> FailedContent(
+                message = state.message,
+                onRetry = onRetry,
+                pickFolder = pickFolder,
+            )
+        }
     }
 }

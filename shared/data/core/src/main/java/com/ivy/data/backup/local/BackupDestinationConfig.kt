@@ -1,5 +1,6 @@
 package com.ivy.data.backup.local
 
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -14,6 +15,12 @@ import javax.inject.Singleton
 data class BackupDestination(
     val treeUri: String,
     val configuredAt: Instant,
+)
+
+data class BackupAttempt(
+    val at: Instant,
+    val success: Boolean,
+    val errorMessage: String?,
 )
 
 /**
@@ -47,15 +54,42 @@ class BackupDestinationConfig @Inject constructor(
         }
     }
 
+    val lastAttempt: Flow<BackupAttempt?> = dataStore.data.map { preferences ->
+        val at = preferences[LAST_ATTEMPT_EPOCH_SEC] ?: return@map null
+        BackupAttempt(
+            at = Instant.ofEpochSecond(at),
+            success = preferences[LAST_ATTEMPT_SUCCESS] ?: false,
+            errorMessage = preferences[LAST_ATTEMPT_ERROR],
+        )
+    }
+
+    suspend fun recordAttempt(attempt: BackupAttempt) {
+        dataStore.edit { preferences ->
+            preferences[LAST_ATTEMPT_EPOCH_SEC] = attempt.at.epochSecond
+            preferences[LAST_ATTEMPT_SUCCESS] = attempt.success
+            if (attempt.errorMessage != null) {
+                preferences[LAST_ATTEMPT_ERROR] = attempt.errorMessage
+            } else {
+                preferences.remove(LAST_ATTEMPT_ERROR)
+            }
+        }
+    }
+
     suspend fun clear() {
         dataStore.edit { preferences ->
             preferences.remove(TREE_URI)
             preferences.remove(CONFIGURED_AT_EPOCH_SEC)
+            preferences.remove(LAST_ATTEMPT_EPOCH_SEC)
+            preferences.remove(LAST_ATTEMPT_SUCCESS)
+            preferences.remove(LAST_ATTEMPT_ERROR)
         }
     }
 
     companion object {
         val TREE_URI = stringPreferencesKey("backup_destination_tree_uri")
         val CONFIGURED_AT_EPOCH_SEC = longPreferencesKey("backup_destination_configured_at_sec")
+        val LAST_ATTEMPT_EPOCH_SEC = longPreferencesKey("backup_last_attempt_epoch_sec")
+        val LAST_ATTEMPT_SUCCESS = booleanPreferencesKey("backup_last_attempt_success")
+        val LAST_ATTEMPT_ERROR = stringPreferencesKey("backup_last_attempt_error")
     }
 }

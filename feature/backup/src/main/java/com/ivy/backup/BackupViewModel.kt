@@ -11,9 +11,10 @@ import androidx.lifecycle.viewModelScope
 import com.ivy.base.time.TimeProvider
 import com.ivy.data.backup.local.BackupDestinationConfig
 import com.ivy.data.backup.local.SafFolderStorage
-import com.ivy.data.model.backup.BackupError
 import com.ivy.data.model.backup.SnapshotOrigin
 import com.ivy.data.model.backup.SnapshotRef
+import com.ivy.domain.usecase.backup.BackupStatus
+import com.ivy.domain.usecase.backup.BackupStatusUseCase
 import com.ivy.domain.usecase.backup.CaptureSnapshotUseCase
 import com.ivy.domain.usecase.backup.CompareSnapshotUseCase
 import com.ivy.domain.usecase.backup.ListSnapshotsUseCase
@@ -35,6 +36,7 @@ class BackupViewModel @Inject constructor(
     private val captureSnapshot: CaptureSnapshotUseCase,
     private val compareSnapshot: CompareSnapshotUseCase,
     private val restoreSnapshot: RestoreSnapshotUseCase,
+    private val backupStatusUseCase: BackupStatusUseCase,
     private val backupScheduler: BackupScheduler,
     private val timeProvider: TimeProvider,
 ) : ComposeViewModel<BackupViewState, BackupEvent>() {
@@ -67,7 +69,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             state = BackupViewState.Loading
             safFolderStorage.remember(Uri.parse(treeUri), timeProvider.utcNow()).fold(
-                ifLeft = { state = BackupViewState.Failed(errorMessage(it)) },
+                ifLeft = { state = BackupViewState.Failed(it.userMessage()) },
                 ifRight = {
                     backupScheduler.schedule()
                     load()
@@ -80,7 +82,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch {
             state = BackupViewState.Loading
             captureSnapshot(SnapshotOrigin.Manual).fold(
-                ifLeft = { state = BackupViewState.Failed(errorMessage(it)) },
+                ifLeft = { state = BackupViewState.Failed(it.userMessage()) },
                 ifRight = { load() },
             )
         }
@@ -99,7 +101,7 @@ class BackupViewModel @Inject constructor(
             restoreCandidate = null
             comparison = null
             restoreSnapshot(ref).fold(
-                ifLeft = { state = BackupViewState.Failed(errorMessage(it)) },
+                ifLeft = { state = BackupViewState.Failed(it.userMessage()) },
                 ifRight = { load() },
             )
         }
@@ -114,6 +116,7 @@ class BackupViewModel @Inject constructor(
         viewModelScope.launch { load() }
     }
 
+    @Suppress("LongMethod")
     private suspend fun load() {
         val destination = destinationConfig.destination.first()
         if (destination == null) {
@@ -121,24 +124,38 @@ class BackupViewModel @Inject constructor(
             return
         }
         listSnapshots().fold(
-            ifLeft = { state = BackupViewState.Failed(errorMessage(it)) },
+            ifLeft = { state = BackupViewState.Failed(it.userMessage()) },
             ifRight = { listing ->
+                val status = backupStatusUseCase()
+                val (statusMessage, isWarning) = statusText(status)
                 state = BackupViewState.Ready(
                     folderName = destination.treeUri.substringAfterLast('/'),
                     snapshots = listing.snapshots.toImmutableList(),
                     unreadableCount = listing.unreadable,
+                    statusMessage = statusMessage,
+                    statusIsWarning = isWarning,
                 )
             },
         )
     }
 
-    private fun errorMessage(error: BackupError): String = when (error) {
-        BackupError.NotConfigured -> "No backup folder configured."
-        BackupError.AccessDenied ->
-            "Cannot reach the backup folder. It may have been moved or its permission revoked."
-        BackupError.OutOfSpace -> "The backup folder is full."
-        is BackupError.WriteFailed -> "The backup could not be written: ${error.cause?.message}"
-        is BackupError.SnapshotUnreadable -> "Cannot read snapshot '${error.name}': ${error.reason}"
-        is BackupError.RestoreFailed -> "Restore failed — the wallet is unchanged: ${error.cause?.message}"
+    private fun statusText(status: BackupStatus): Pair<String?, Boolean> = when (status) {
+        is BackupStatus.Healthy -> formatAge(status.lastSnapshotAt) to false
+        is BackupStatus.Failing -> (status.lastAttemptError
+            ?: "Last backup attempt failed.") to true
+        BackupStatus.NeverBackedUp -> "No backup yet." to true
+        BackupStatus.Unreachable -> "Folder unreachable." to true
+        BackupStatus.NotConfigured -> null to false
+    }
+
+    @Suppress("MagicNumber")
+    private fun formatAge(snapshotAt: java.time.Instant): String {
+        val age = java.time.Duration.between(snapshotAt, timeProvider.utcNow())
+        val hours = age.toHours()
+        return when {
+            hours < 1 -> "Last backup: less than an hour ago"
+            hours < 24 -> "Last backup: ${hours}h ago"
+            else -> "Last backup: ${hours / 24}d ago"
+        }
     }
 }

@@ -4,6 +4,9 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.ivy.base.time.TimeProvider
+import com.ivy.data.backup.local.BackupAttempt
+import com.ivy.data.backup.local.BackupDestinationConfig
 import com.ivy.data.model.backup.BackupError
 import com.ivy.data.model.backup.SnapshotOrigin
 import com.ivy.domain.usecase.backup.CaptureSnapshotUseCase
@@ -27,11 +30,31 @@ class BackupWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
     private val capture: CaptureSnapshotUseCase,
+    private val destinationConfig: BackupDestinationConfig,
+    private val timeProvider: TimeProvider,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = capture(SnapshotOrigin.Scheduled).fold(
-        ifLeft = ::resultFor,
-        ifRight = { Result.success() },
+        ifLeft = { error ->
+            destinationConfig.recordAttempt(
+                BackupAttempt(
+                    at = timeProvider.utcNow(),
+                    success = false,
+                    errorMessage = error.userMessage(),
+                ),
+            )
+            resultFor(error)
+        },
+        ifRight = {
+            destinationConfig.recordAttempt(
+                BackupAttempt(
+                    at = timeProvider.utcNow(),
+                    success = true,
+                    errorMessage = null,
+                ),
+            )
+            Result.success()
+        },
     )
 
     private fun resultFor(error: BackupError): Result = when (error) {

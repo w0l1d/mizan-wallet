@@ -20,6 +20,8 @@ sealed interface BackupViewState {
         val folderName: String,
         val snapshots: ImmutableList<SnapshotRef>,
         val unreadableCount: Int,
+        val statusMessage: String? = null,
+        val statusIsWarning: Boolean = false,
     ) : BackupViewState
 
     /** Something went wrong. The user sees a message and can retry or re-pick a folder. */
