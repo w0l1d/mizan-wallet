@@ -47,8 +47,12 @@ android {
 
     // Returns trimmed stdout, or null when git is unavailable or says nothing.
     fun git(vararg args: String): String? = try {
-        providers.exec { commandLine("git", *args) }
-            .standardOutput.asText.get().trim().ifEmpty { null }
+        val result = providers.exec {
+            commandLine("git", *args)
+            isIgnoreExitValue = true
+        }
+        if (result.result.get().exitValue != 0) null
+        else result.standardOutput.asText.get().trim().ifEmpty { null }
     } catch (_: Exception) {
         null
     }
