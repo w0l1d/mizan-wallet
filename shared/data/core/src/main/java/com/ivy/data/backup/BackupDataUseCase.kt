@@ -193,11 +193,12 @@ class BackupDataUseCase @Inject constructor(
 
         onProgress(0.1)
 
-        if (filesList.size != 1) {
-            error("Didn't unzip exactly one file.")
-        }
+        val dataEntry = BackupArchiveEntries.selectDataEntry(filesList.map { it.name })
+            ?: error("Didn't unzip exactly one data document.")
 
-        return fileSystem.read(filesList[0].toUri(), Charsets.UTF_16).getOrNull()
+        val dataFile = filesList.first { it.name == dataEntry }
+
+        return fileSystem.read(dataFile.toUri(), Charsets.UTF_16).getOrNull()
     }
 
     suspend fun importJson(
@@ -382,4 +383,23 @@ class BackupDataUseCase @Inject constructor(
     private fun clearCacheDir() {
         context.cacheDir.deleteRecursively()
     }
+}
+
+/**
+ * Which entry of a backup archive holds the wallet data.
+ *
+ * Archives written before the local-backup feature hold a single `.json` document. Archives
+ * written by it hold that same document plus a reserved `manifest.json`, so the manifest is
+ * excluded here rather than counted as a second data document — without this the existing manual
+ * import would reject every snapshot the feature produces.
+ */
+internal object BackupArchiveEntries {
+
+    const val MANIFEST_ENTRY = "manifest.json"
+
+    /** The single data entry, or null when there is not exactly one. */
+    fun selectDataEntry(entryNames: List<String>): String? = entryNames
+        .filter { it.endsWith(".json", ignoreCase = true) }
+        .filterNot { it.equals(MANIFEST_ENTRY, ignoreCase = true) }
+        .singleOrNull()
 }
