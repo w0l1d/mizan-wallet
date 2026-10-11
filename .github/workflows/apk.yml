@@ -102,9 +102,9 @@ jobs:
     # only ever reads. Everything that writes to the repo lives in publish_apk,
     # which pull requests never reach.
     outputs:
-      version_name: ${{ needs.assemble_demo_apk.outputs.version_name }}
-      version_code: ${{ needs.assemble_demo_apk.outputs.version_code }}
-      channel: ${{ needs.assemble_demo_apk.outputs.channel }}
+      version_name: ${{ steps.validate.outputs.version_name }}
+      version_code: ${{ steps.validate.outputs.version_code }}
+      channel: ${{ steps.validate.outputs.channel }}
     steps:
       - name: Checkout GIT
         uses: actions/checkout@v7
